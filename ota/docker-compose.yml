@@ -1,0 +1,14 @@
+services:
+  ota-server:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "3020:80"
+    volumes:
+      - ./releases:/usr/share/nginx/html:ro
+    networks:
+      - nginx-network
+
+networks:
+  nginx-network:
+    external: true

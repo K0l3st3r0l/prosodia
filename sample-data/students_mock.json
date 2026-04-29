@@ -1,0 +1,72 @@
+[
+  {
+    "id": 438,
+    "rut": "26906466-8",
+    "nombreCompleto": "PÉREZ LUCAS",
+    "curso": "1°",
+    "activo": true
+  },
+  {
+    "id": 454,
+    "rut": "25009612-7",
+    "nombreCompleto": "CASTILLO AYLIN",
+    "curso": "5°",
+    "activo": true
+  },
+  {
+    "id": 455,
+    "rut": "24969244-1",
+    "nombreCompleto": "FICA DAPHNE",
+    "curso": "5°",
+    "activo": true
+  },
+  {
+    "id": 464,
+    "rut": "28406899-8",
+    "nombreCompleto": "ZAMORA DANIELIS",
+    "curso": "7°",
+    "activo": true
+  },
+  {
+    "id": 460,
+    "rut": "24412049-0",
+    "nombreCompleto": "CEA DANTE",
+    "curso": "7°",
+    "activo": true
+  },
+  {
+    "id": 457,
+    "rut": "24271604-3",
+    "nombreCompleto": "MELIPILLAN SANTIAGO",
+    "curso": "6°",
+    "activo": true
+  },
+  {
+    "id": 456,
+    "rut": "24866499-1",
+    "nombreCompleto": "ROGEL PAZ",
+    "curso": "6°",
+    "activo": true
+  },
+  {
+    "id": 458,
+    "rut": "24920239-8",
+    "nombreCompleto": "ARAYA AMELIA",
+    "curso": "6°",
+    "activo": true
+  },
+  {
+    "id": 450,
+    "rut": "28860929-2",
+    "nombreCompleto": "SALAZAR YHONDEIKER",
+    "curso": "5°",
+    "activo": true
+  },
+  {
+    "id": 451,
+    "rut": "25073707-6",
+    "nombreCompleto": "BARRIA AMIRA",
+    "curso": "5°",
+    "activo": true
+  }
+]

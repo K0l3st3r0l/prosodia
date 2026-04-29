@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["student_id", "pcpm"],
+  "properties": {
+    "student_id": { "type": "integer" },
+    "pcpm": { "type": "number", "minimum": 0 },
+    "velocidad": { "type": "string" },
+    "nivel_logro_velocidad": { "type": "string" },
+    "calidad": { "type": "string" },
+    "nivel_logro_calidad": { "type": "string" },
+    "prosodia": { "type": "string" },
+    "fecha": { "type": "string", "format": "date" }
+  }
+}
