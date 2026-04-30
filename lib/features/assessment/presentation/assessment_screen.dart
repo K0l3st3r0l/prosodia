@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../../core/database/app_database.dart';
+import '../../../core/network/api_client.dart';
+import '../../../features/students/data/student_repository.dart';
 import '../logic/assessment_calculator.dart';
 
 // Providers (se conectan desde main con ProviderScope overrides)
@@ -23,6 +25,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
   List<Student> _students = [];
   Student? _selectedStudent;
   EvalState _state = EvalState.idle;
+  bool _syncing = false;
 
   // Contadores
   int _errores = 0;
@@ -41,7 +44,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
   @override
   void initState() {
     super.initState();
-    _loadStudents();
+    _syncAndLoad();
   }
 
   @override
@@ -51,10 +54,33 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
     super.dispose();
   }
 
-  Future<void> _loadStudents() async {
+  Future<void> _syncAndLoad() async {
     final db = ref.read(dbProvider);
-    final list = await db.getAllStudents();
-    if (mounted) setState(() => _students = list);
+
+    // Cargar desde DB local primero (instantáneo)
+    final local = await db.getAllStudents();
+    if (mounted) setState(() => _students = local);
+
+    // Sincronizar desde el servidor en background
+    setState(() => _syncing = true);
+    try {
+      final repo = StudentRepository(db, ApiClient());
+      await repo.syncFromServer();
+      final updated = await db.getAllStudents();
+      if (mounted) setState(() => _students = updated);
+    } catch (e) {
+      if (mounted && _students.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Sin conexión — trabajando sin internet. Error: $e'),
+            backgroundColor: Colors.orange[700],
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _syncing = false);
+    }
   }
 
   Future<void> _startRecording() async {
@@ -164,11 +190,19 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
         backgroundColor: const Color(0xFF1A237E),
         foregroundColor: Colors.white,
         actions: [
-          if (_state == EvalState.idle)
+          if (_syncing)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: SizedBox(
+                width: 20, height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              ),
+            )
+          else
             IconButton(
               icon: const Icon(Icons.sync),
-              tooltip: 'Sincronizar',
-              onPressed: () {},
+              tooltip: 'Sincronizar estudiantes',
+              onPressed: _state == EvalState.idle ? _syncAndLoad : null,
             ),
         ],
       ),

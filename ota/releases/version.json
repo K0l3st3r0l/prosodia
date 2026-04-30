@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "build": 1,
+  "build": 2,
   "url": "https://ota.laravas.com/prosodia-latest.apk",
-  "changelog": "Versión inicial"
+  "changelog": "Fix: sincronizar estudiantes al iniciar, indicador de carga, error offline visible"
 }
