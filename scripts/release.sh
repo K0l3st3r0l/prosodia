@@ -31,7 +31,7 @@ echo "▶ Versión: $VERSION+$BUILD"
 
 # ── Build APK release ──────────────────────────────────────────────────────────
 echo "▶ Compilando APK release (puede tardar 3-5 min)..."
-flutter --suppress-analytics build apk --release --target-platform android-arm64 2>&1 | grep -v "Woah\|root\|superuser"
+flutter --suppress-analytics build apk --release 2>&1 | grep -v "Woah\|root\|superuser"
 echo "✅ APK generado"
 
 # ── Copiar APK al servidor OTA ────────────────────────────────────────────────
