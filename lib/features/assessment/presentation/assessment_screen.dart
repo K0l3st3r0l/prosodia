@@ -4,9 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
+import '../../../core/auth/auth_repository.dart';
 import '../../../core/database/app_database.dart';
+import '../../../core/log_service.dart';
 import '../../../core/network/api_client.dart';
 import '../../../features/students/data/student_repository.dart';
+import '../../../features/debug/log_screen.dart';
+import '../../auth/presentation/login_screen.dart';
 import '../logic/assessment_calculator.dart';
 
 // Providers (se conectan desde main con ProviderScope overrides)
@@ -26,6 +30,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
   Student? _selectedStudent;
   EvalState _state = EvalState.idle;
   bool _syncing = false;
+  int _titleTaps = 0;
 
   // Contadores
   int _errores = 0;
@@ -64,15 +69,18 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
     // Sincronizar desde el servidor en background
     setState(() => _syncing = true);
     try {
+      log.info('Sincronizando estudiantes desde el servidor...');
       final repo = StudentRepository(db, ApiClient());
       await repo.syncFromServer();
       final updated = await db.getAllStudents();
+      log.info('Sync OK — ${updated.length} estudiantes cargados');
       if (mounted) setState(() => _students = updated);
     } catch (e) {
+      log.error('Error sincronizando estudiantes', e);
       if (mounted && _students.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Sin conexión — trabajando sin internet. Error: $e'),
+            content: Text('Sin conexión — sin estudiantes disponibles. Error: $e'),
             backgroundColor: Colors.orange[700],
             duration: const Duration(seconds: 5),
           ),
@@ -83,9 +91,42 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
     }
   }
 
+  Future<void> _logout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cerrar sesión'),
+        content: const Text('¿Seguro que quieres salir?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Salir')),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+    log.info('Cerrando sesión');
+    await AuthRepository(ApiClient()).logout();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (_) => false,
+    );
+  }
+
+  void _onTitleTap() {
+    _titleTaps++;
+    if (_titleTaps >= 5) {
+      _titleTaps = 0;
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LogScreen()));
+    }
+  }
+
   Future<void> _startRecording() async {
     final hasPermission = await _recorder.hasPermission();
-    if (!hasPermission) return;
+    if (!hasPermission) {
+      log.warn('Permiso de micrófono denegado');
+      return;
+    }
 
     final dir = await getApplicationDocumentsDirectory();
     final path = '${dir.path}/eval_${DateTime.now().millisecondsSinceEpoch}.m4a';
@@ -186,7 +227,10 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('ProsodIA — Evaluación lectora'),
+        title: GestureDetector(
+          onTap: _onTitleTap,
+          child: const Text('ProsodIA — Evaluación lectora'),
+        ),
         backgroundColor: const Color(0xFF1A237E),
         foregroundColor: Colors.white,
         actions: [
@@ -204,6 +248,11 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
               tooltip: 'Sincronizar estudiantes',
               onPressed: _state == EvalState.idle ? _syncAndLoad : null,
             ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Cerrar sesión',
+            onPressed: _state == EvalState.idle ? _logout : null,
+          ),
         ],
       ),
       body: Row(
