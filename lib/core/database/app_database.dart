@@ -66,14 +66,18 @@ class AppDatabase extends _$AppDatabase {
       (select(assessmentSessions)..where((a) => a.synced.equals(false))).get();
 
   Future<void> markSynced(int id) =>
-      (update(assessmentSessions)..where((a) => a.id.equals(id)))
-          .write(AssessmentSessionsCompanion(
-        synced: const Value(true),
-        syncedAt: Value(DateTime.now()),
-      ));
+      (update(assessmentSessions)..where((a) => a.id.equals(id))).write(
+        AssessmentSessionsCompanion(
+          synced: const Value(true),
+          syncedAt: Value(DateTime.now()),
+        ),
+      );
 
   Future<List<ReadingText>> getTextsByNivel(String nivel) =>
-      (select(readingTexts)..where((t) => t.nivel.equals(nivel))).get();
+      (select(readingTexts)
+            ..where((t) => t.nivel.equals(nivel))
+            ..orderBy([(t) => OrderingTerm.asc(t.id)]))
+          .get();
 }
 
 LazyDatabase _openConnection() {

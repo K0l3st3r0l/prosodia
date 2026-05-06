@@ -1,0 +1,17 @@
+services:
+  whisper:
+    build: .
+    container_name: prosodia-whisper
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - whisper_models:/root/.cache/huggingface
+    networks:
+      - nginx-network
+
+volumes:
+  whisper_models:
+
+networks:
+  nginx-network:
+    external: true

@@ -16,11 +16,12 @@ APK_NAME="prosodia-latest.apk"
 PUBSPEC="pubspec.yaml"
 
 # ── Bump build number ──────────────────────────────────────────────────────────
+# Esquema: 1.0.N+N — el último dígito de la versión y el build code son iguales
 if [[ "${1:-}" == "--bump" ]]; then
   CURRENT_BUILD=$(grep "^version:" "$PUBSPEC" | grep -oP '\+\K[0-9]+')
   NEW_BUILD=$((CURRENT_BUILD + 1))
-  VERSION=$(grep "^version:" "$PUBSPEC" | grep -oP '[\d.]+(?=\+)')
-  sed -i "s/^version: .*/version: ${VERSION}+${NEW_BUILD}/" "$PUBSPEC"
+  MAJOR_MINOR=$(grep "^version:" "$PUBSPEC" | grep -oP '[\d]+\.[\d]+(?=\.)')
+  sed -i "s/^version: .*/version: ${MAJOR_MINOR}.${NEW_BUILD}+${NEW_BUILD}/" "$PUBSPEC"
   echo "▶ Build bump: $CURRENT_BUILD → $NEW_BUILD"
 fi
 
@@ -36,6 +37,11 @@ echo "✅ APK generado"
 
 # ── Copiar APK al servidor OTA ────────────────────────────────────────────────
 echo "▶ Publicando en OTA..."
+# Guardar versión anterior para posible rollback
+if [[ -f "$OTA_RELEASES/$APK_NAME" ]]; then
+  cp "$OTA_RELEASES/$APK_NAME" "$OTA_RELEASES/prosodia-prev.apk"
+  cp "$OTA_RELEASES/version.json" "$OTA_RELEASES/version-prev.json"
+fi
 cp "$APK_LOCAL" "$OTA_RELEASES/$APK_NAME"
 
 # ── Actualizar version.json ───────────────────────────────────────────────────
@@ -44,7 +50,7 @@ cat > "$OTA_RELEASES/version.json" <<EOF
 {
   "version": "$VERSION",
   "build": $BUILD,
-  "url": "https://ota.laravas.com/$APK_NAME",
+  "url": "https://ota.laravas.com/$APK_NAME?v=$BUILD",
   "changelog": "$CHANGELOG"
 }
 EOF

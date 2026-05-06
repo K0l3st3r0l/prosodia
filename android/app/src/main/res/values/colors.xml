@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#7C3AED</color>
+    <color name="prosodia_window_background">#F3F6FA</color>
+    <color name="prosodia_splash_top">#5B21B6</color>
+    <color name="prosodia_splash_mid">#7C3AED</color>
+    <color name="prosodia_splash_bottom">#DB2777</color>
+    <color name="prosodia_splash_panel">#25FFFFFF</color>
+    <color name="prosodia_splash_panel_stroke">#44FFFFFF</color>
+    <color name="prosodia_splash_glow">#44FFD23C</color>
+</resources>

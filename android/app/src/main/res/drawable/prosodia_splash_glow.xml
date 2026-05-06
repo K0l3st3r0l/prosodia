@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <gradient
+        android:centerColor="@color/prosodia_splash_glow"
+        android:endColor="#00E8A23B"
+        android:gradientRadius="160dp"
+        android:startColor="#55E8A23B"
+        android:type="radial" />
+</shape>

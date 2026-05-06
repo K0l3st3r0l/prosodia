@@ -1,6 +1,6 @@
 {
-  "version": "1.0.0",
-  "build": 3,
-  "url": "https://ota.laravas.com/prosodia-latest.apk",
-  "changelog": "feat: cerrar sesión + panel de logs (tocar título 5 veces)"
+  "version": "1.0.35",
+  "build": 35,
+  "url": "https://ota.laravas.com/prosodia-latest.apk?v=35",
+  "changelog": "UI/UX adaptada para móviles: AppBar compacto, paneles proporcionales, scroll habilitado en galería de lecturas"
 }
