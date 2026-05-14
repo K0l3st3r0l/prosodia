@@ -52,18 +52,19 @@ def _comparar(esperado: str, transcrito: str) -> dict:
             for k in range(max(len(esp), len(got))):
                 e = esp[k] if k < len(esp) else None
                 g = got[k] if k < len(got) else None
+                idx = (i1 + k) if k < len(esp) else None
                 if e and g:
-                    errores.append({"tipo": "sustitución", "esperado": e, "leído": g})
+                    errores.append({"tipo": "sustitución", "esperado": e, "leído": g, "indice": idx})
                 elif e:
-                    errores.append({"tipo": "omisión", "esperado": e, "leído": None})
+                    errores.append({"tipo": "omisión", "esperado": e, "leído": None, "indice": idx})
                 else:
-                    errores.append({"tipo": "adición", "esperado": None, "leído": g})
+                    errores.append({"tipo": "adición", "esperado": None, "leído": g, "indice": None})
         elif tag == "delete":
-            for w in palabras_esperadas[i1:i2]:
-                errores.append({"tipo": "omisión", "esperado": w, "leído": None})
+            for offset, w in enumerate(palabras_esperadas[i1:i2]):
+                errores.append({"tipo": "omisión", "esperado": w, "leído": None, "indice": i1 + offset})
         elif tag == "insert":
             for w in palabras_transcritas[j1:j2]:
-                errores.append({"tipo": "adición", "esperado": None, "leído": w})
+                errores.append({"tipo": "adición", "esperado": None, "leído": w, "indice": None})
 
     # Solo sustituciones y omisiones cuentan como error en fluidez lectora
     n_errores = sum(1 for e in errores if e["tipo"] in ("sustitución", "omisión"))

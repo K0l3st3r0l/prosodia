@@ -70,6 +70,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
   String? _transcript;
   bool _whisperFailed = false;
   bool _whisperAnalyzed = false;
+  List<Map<String, dynamic>> _erroresDetalle = [];
 
   // Scroll
   final GlobalKey _timerSectionKey = GlobalKey();
@@ -254,6 +255,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
       _elapsed = Duration.zero;
       _errores = 0;
       _palabrasLeidas = _selectedTexto?.totalPalabras ?? 0;
+      _erroresDetalle = [];
       _whisperAnalyzed = false;
     });
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -300,6 +302,11 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
             (data['palabras_leidas'] as num?)?.toInt() ??
             (_selectedTexto?.totalPalabras ?? 0);
         _errores = (data['errores'] as num?)?.toInt() ?? 0;
+        _erroresDetalle =
+            (data['errores_detalle'] as List?)
+                ?.map((e) => Map<String, dynamic>.from(e as Map))
+                .toList() ??
+            [];
         _whisperFailed = false;
         _whisperAnalyzed = true;
         _state = EvalState.reviewing;
@@ -311,6 +318,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
         _transcript = null;
         _palabrasLeidas = _selectedTexto?.totalPalabras ?? 0;
         _errores = 0;
+        _erroresDetalle = [];
         _whisperFailed = true;
         _whisperAnalyzed = false;
         _state = EvalState.reviewing;
@@ -446,6 +454,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
                 _elapsed = Duration.zero;
                 _audioPath = null;
                 _transcript = null;
+                _erroresDetalle = [];
                 _whisperFailed = false;
                 _whisperAnalyzed = false;
                 _courseStats = null;
@@ -677,13 +686,54 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
     );
   }
 
+  Widget _buildHighlightedText(
+    String text,
+    Map<int, String> errorMap,
+    TextStyle baseStyle,
+  ) {
+    final wordRegex = RegExp(r'[\p{L}\p{N}]+|[^\p{L}\p{N}]+', unicode: true);
+    final spans = <InlineSpan>[];
+    int wordIdx = 0;
+
+    for (final match in wordRegex.allMatches(text)) {
+      final segment = match.group(0)!;
+      final isWord = RegExp(r'^[\p{L}\p{N}]+$', unicode: true).hasMatch(segment);
+      if (isWord) {
+        final tipo = errorMap[wordIdx];
+        final isError = tipo == 'sustitución' || tipo == 'omisión';
+        spans.add(
+          TextSpan(
+            text: segment,
+            style: baseStyle.copyWith(
+              color: isError ? const Color(0xFFB91C1C) : baseStyle.color,
+              backgroundColor:
+                  isError ? const Color(0xFFFEE2E2) : Colors.transparent,
+            ),
+          ),
+        );
+        wordIdx++;
+      } else {
+        spans.add(TextSpan(text: segment, style: baseStyle));
+      }
+    }
+
+    return RichText(text: TextSpan(children: spans));
+  }
+
   Widget _buildReviewTextCard({
     required String label,
     required String content,
     Color? accentColor,
     int? totalWords,
+    Map<int, String>? errorMap,
   }) {
     final theme = Theme.of(context);
+    final baseTextStyle = AppTheme.readingTextStyle(
+      theme.textTheme,
+      fontSize: 18,
+      height: 1.75,
+      color: accentColor == null ? AppTheme.ink : AppTheme.primary,
+    );
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -734,16 +784,36 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
               ],
             ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            content,
-            style: AppTheme.readingTextStyle(
-              theme.textTheme,
-              fontSize: 18,
-              height: 1.75,
-              color: accentColor == null ? AppTheme.ink : AppTheme.primary,
+          if (errorMap != null && errorMap.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEE2E2),
+                    border: Border.all(
+                      color: const Color(0xFFB91C1C),
+                      width: 1,
+                    ),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'palabra incorrecta u omitida',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: AppTheme.muted,
+                  ),
+                ),
+              ],
             ),
-          ),
+          ],
+          const SizedBox(height: 12),
+          errorMap != null
+              ? _buildHighlightedText(content, errorMap, baseTextStyle)
+              : Text(content, style: baseTextStyle),
         ],
       ),
     );
@@ -1616,6 +1686,10 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
 
   Widget _buildReviewPanel(bool isCompact, double textFontSize) {
     final theme = Theme.of(context);
+    final Map<int, String> errorMap = {
+      for (final e in _erroresDetalle)
+        if (e['indice'] != null) (e['indice'] as int): (e['tipo'] as String),
+    };
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1690,6 +1764,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
                           label: 'Texto original',
                           content: _selectedTexto?.contenido ?? '',
                           totalWords: _selectedTexto?.totalPalabras,
+                          errorMap: errorMap.isNotEmpty ? errorMap : null,
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -1715,6 +1790,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
                     label: 'Texto original',
                     content: _selectedTexto?.contenido ?? '',
                     totalWords: _selectedTexto?.totalPalabras,
+                    errorMap: errorMap.isNotEmpty ? errorMap : null,
                   ),
                 ],
                 const SizedBox(height: 20),
@@ -3084,6 +3160,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
                                 _elapsed = Duration.zero;
                                 _audioPath = null;
                                 _transcript = null;
+                                _erroresDetalle = [];
                                 _whisperFailed = false;
                                 _whisperAnalyzed = false;
                                 _courseStats = null;

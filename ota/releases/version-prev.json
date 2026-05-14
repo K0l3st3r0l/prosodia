@@ -1,6 +1,6 @@
 {
-  "version": "1.0.34",
-  "build": 34,
-  "url": "https://ota.laravas.com/prosodia-latest.apk?v=34",
-  "changelog": "historial alumno + gráficas distribución y progresión + sync fix + sugerencias"
+  "version": "1.0.35",
+  "build": 35,
+  "url": "https://ota.laravas.com/prosodia-latest.apk?v=35",
+  "changelog": "UI/UX adaptada para móviles: AppBar compacto, paneles proporcionales, scroll habilitado en galería de lecturas"
 }

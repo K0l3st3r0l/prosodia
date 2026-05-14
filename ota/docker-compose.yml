@@ -6,6 +6,8 @@ services:
       - "3020:80"
     volumes:
       - ./releases:/usr/share/nginx/html:ro
+      - /root/apps/talkia/ota/releases:/talkia-releases:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
       - nginx-network
 

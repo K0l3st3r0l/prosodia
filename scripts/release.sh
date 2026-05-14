@@ -61,3 +61,11 @@ echo "   Versión:  $VERSION (build $BUILD)"
 echo "   APK:      https://ota.laravas.com/$APK_NAME"
 echo "   Tamaño:   $(du -sh "$OTA_RELEASES/$APK_NAME" | cut -f1)"
 echo "   Info:     https://ota.laravas.com/version.json"
+
+# ── Git commit y push ─────────────────────────────────────────────────────────
+echo ""
+echo "▶ Commiteando cambios..."
+git add pubspec.yaml ota/releases/version.json
+git commit -m "release: v${VERSION} (build ${BUILD}) — ${CHANGELOG}"
+git push origin main
+echo "✅ Git actualizado → v${VERSION} (build ${BUILD})"
