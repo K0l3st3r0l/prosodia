@@ -14,6 +14,7 @@ OTA_RELEASES="/root/apps/prosodia/ota/releases"
 APK_LOCAL="build/app/outputs/flutter-apk/app-release.apk"
 APK_NAME="prosodia-latest.apk"
 PUBSPEC="pubspec.yaml"
+WIKI_DIR="/root/apps/wiki"
 
 # ── Bump build number ──────────────────────────────────────────────────────────
 # Esquema: 1.0.N+N — el último dígito de la versión y el build code son iguales
@@ -92,3 +93,18 @@ git add pubspec.yaml ota/releases/version.json
 git commit -m "release: v${VERSION} (build ${BUILD}) — ${CHANGELOG}"
 git push origin main
 echo "✅ Git actualizado → v${VERSION} (build ${BUILD})"
+
+# ── Actualizar wiki ───────────────────────────────────────────────────────────
+echo ""
+echo "▶ Actualizando wiki..."
+TODAY=$(date '+%Y-%m-%d')
+cat >> "$WIKI_DIR/log.md" <<EOF
+
+## [$TODAY] update | ProsodIA v${VERSION} (build ${BUILD}) — ${CHANGELOG}
+- APK publicado en OTA: https://ota.laravas.com/prosodia-latest.apk
+- Tamaño: $(du -sh "$OTA_RELEASES/$APK_NAME" | cut -f1)
+EOF
+bash "$WIKI_DIR/wiki-push.sh" "update: ProsodIA v${VERSION} — ${CHANGELOG}" 2>/dev/null || echo "⚠ Wiki push falló (continúa igualmente)."
+
+echo ""
+echo "✅ Wiki actualizada"
