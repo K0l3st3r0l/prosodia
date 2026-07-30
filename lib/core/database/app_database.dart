@@ -31,6 +31,19 @@ class AssessmentSessions extends Table {
   TextColumn get audioPath => text().nullable()();
   BoolColumn get synced => boolean().withDefault(const Constant(false))();
   DateTimeColumn get syncedAt => dateTime().nullable()();
+
+  /// Build de la app (`PackageInfo.buildNumber`) al momento de la evaluación.
+  ///
+  /// Nullable a propósito: las filas anteriores a esta columna quedan en
+  /// `null`, que es "condiciones desconocidas" — un dato correcto, no uno
+  /// faltante que haya que rellenar.
+  IntColumn get appBuild => integer().nullable()();
+
+  /// Caracteres por línea **efectivos** del texto de lectura en el render real
+  /// de esa evaluación (ver `AppTypeScale.effectiveCplFor` y
+  /// `ReadingView.onReadingCplMeasured`). Varía por breakpoint y por el ancho
+  /// realmente disponible, no es la constante de diseño (~64).
+  RealColumn get readingCpl => real().nullable()();
 }
 
 class ReadingTexts extends Table {
@@ -45,8 +58,24 @@ class ReadingTexts extends Table {
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
+  /// Para tests: permite abrir sobre un [QueryExecutor] propio (p. ej. una
+  /// base file-based creada a mano con un esquema previo) en vez del archivo
+  /// real de la app.
+  AppDatabase.forTesting(super.executor);
+
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onCreate: (m) => m.createAll(),
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.addColumn(assessmentSessions, assessmentSessions.appBuild);
+        await m.addColumn(assessmentSessions, assessmentSessions.readingCpl);
+      }
+    },
+  );
 
   Future<List<Student>> getAllStudents() => select(students).get();
 

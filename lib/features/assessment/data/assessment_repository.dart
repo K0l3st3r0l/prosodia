@@ -18,6 +18,8 @@ class AssessmentRepository {
     required String nivelLogroCalidad,
     required String prosodia,
     String? audioPath,
+    int? appBuild,
+    double? readingCpl,
   }) {
     return _db.insertAssessment(AssessmentSessionsCompanion(
       studentId: Value(studentId),
@@ -29,6 +31,8 @@ class AssessmentRepository {
       nivelLogroCalidad: Value(nivelLogroCalidad),
       prosodia: Value(prosodia),
       audioPath: Value(audioPath),
+      appBuild: Value(appBuild),
+      readingCpl: Value(readingCpl),
       synced: const Value(false),
     ));
   }
@@ -46,6 +50,9 @@ class AssessmentRepository {
           'nivel_logro_calidad': session.nivelLogroCalidad,
           'prosodia': session.prosodia,
           'fecha': session.fecha.toIso8601String().split('T')[0],
+          'semestre': session.fecha.month <= 7 ? 1 : 2,
+          'app_build': session.appBuild,
+          'reading_cpl': session.readingCpl,
         });
         await _db.markSynced(session.id);
       } catch (_) {

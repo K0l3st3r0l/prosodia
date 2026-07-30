@@ -6,6 +6,7 @@ import 'core/database/app_database.dart';
 import 'core/network/api_client.dart';
 import 'core/auth/auth_repository.dart';
 import 'core/reading_texts_seed.dart';
+import 'core/responsive/orientation_lock.dart';
 import 'features/auth/presentation/login_screen.dart';
 import 'features/assessment/presentation/assessment_screen.dart';
 import 'features/ota_update/ota_service.dart';
@@ -13,11 +14,7 @@ import 'features/ota_update/ota_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Forzar modo landscape en tablets
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.landscapeLeft,
-    DeviceOrientation.landscapeRight,
-  ]);
+  await applyDefaultOrientations();
 
   // Pintar las barras del sistema en navy para que se camuflen con el AppBar
   // y el splash. Iconos en blanco para contrastar con fondo oscuro.

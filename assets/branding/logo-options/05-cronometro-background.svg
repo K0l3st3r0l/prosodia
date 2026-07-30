@@ -1,0 +1,17 @@
+<!-- Capa background del adaptive icon.
+
+     El degradado va de #976BFF a #4F12A6, no del #8B5CF6→#5B21B6 del logo completo.
+     Razón: de esta capa solo se ve el 66.7% central (72 dp visibles sobre 108 dp de
+     lienzo), así que un degradado con los colores nominales se vería recortado a su
+     tramo medio y plano. Los extremos están extrapolados un 25% hacia afuera para que
+     el tramo VISIBLE coincida con el degradado del logo completo. Esta capa no lleva
+     inset: el generador la usa a sangre. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="1024" height="1024" role="img" aria-label="">
+  <defs>
+    <linearGradient id="t-bgx" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#976BFF"/>
+      <stop offset="1" stop-color="#4F12A6"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#t-bgx)"/>
+</svg>

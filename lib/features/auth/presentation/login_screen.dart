@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/auth/auth_repository.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/responsive/responsive.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_logo.dart';
 import '../../../core/widgets/app_version_text.dart';
@@ -90,11 +91,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   color: AppTheme.primary.withValues(alpha: 0.12),
                 ),
               ),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final isCompact = constraints.maxWidth < 980;
+              ResponsiveScope(
+                builder: (context, r) {
+                  // Umbral propio de esta pantalla, derivado de su contenido:
+                  // hero legible (mín. 480) + separación (28) + formulario
+                  // (440) + padding de página (40) ≈ 988.
+                  final isCompact = r.available.width < 980;
                   final maxWidth = isCompact ? 760.0 : 1240.0;
-                  final panelSpacing = isCompact ? 20.0 : 28.0;
+                  final panelSpacing = isCompact ? r.spacing.xl : r.spacing.xxl;
 
                   final heroPanel = _buildHeroPanel(context, isCompact);
                   final loginPanel = Container(
@@ -231,9 +235,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   ),
                           ),
                           SizedBox(height: _error == null ? 4 : 20),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 58,
+                          // Altura mínima, no fija: con el texto del sistema
+                          // escalado el botón crece en vez de recortar su
+                          // etiqueta.
+                          ConstrainedBox(
+                            constraints: BoxConstraints(
+                              minWidth: double.infinity,
+                              minHeight: 58 * r.textScale,
+                            ),
                             child: FilledButton(
                               onPressed: canSubmit ? _login : null,
                               child: AnimatedSwitcher(

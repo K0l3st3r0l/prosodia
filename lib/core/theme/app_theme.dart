@@ -13,6 +13,28 @@ abstract final class AppTheme {
   static const Color ink = Color(0xFF1E1155);          // Azul-morado profundo
   static const Color muted = Color(0xFF6E5FA6);        // Morado grisáceo
 
+  // Roles semánticos que el ColorScheme de Material no cubre. Viven aquí para
+  // que las pantallas no repitan literales: `0xFFCEC7F0` llegó a aparecer 12
+  // veces en assessment_screen.dart, siendo que ya era `colorScheme.outline`.
+
+  // Grabación en curso y acciones destructivas. Distinto de `colorScheme.error`
+  // (0xFFE53E3E), que es el rojo de validación de formularios: aquí el rojo no
+  // señala un error del docente sino que el micrófono está abierto.
+  static const Color danger = Color(0xFFEF4444);
+  static const Color dangerSurface = Color(0xFFFFF4F3);
+  static const Color dangerBorder = Color(0xFFFFD5D0);
+  static const Color dangerHalo = Color(0xFFFFE1DD);
+
+  // Palabra que el estudiante leyó mal u omitió, resaltada sobre el texto original.
+  static const Color readingErrorInk = Color(0xFFB91C1C);
+  static const Color readingErrorSurface = Color(0xFFFEE2E2);
+
+  // Análisis de IA no disponible: el flujo sigue, pero en modo manual.
+  static const Color warningIcon = Color(0xFFB54708);
+  static const Color warningInk = Color(0xFF93370D);
+  static const Color warningSurface = Color(0xFFFFF5E8);
+  static const Color warningBorder = Color(0xFFF8D5A1);
+
   // Solid colors instead of gradients — older Android GPUs (and some panels with
   // limited color depth) render LinearGradient with severe banding/garbage that
   // looks like pixel corruption. Solid colors render correctly everywhere.
@@ -215,7 +237,10 @@ abstract final class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         labelStyle: textTheme.labelMedium?.copyWith(color: ink),
         secondaryLabelStyle: textTheme.labelMedium?.copyWith(color: primary),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        // Los chips de calidad y prosodia son los controles más tocados de la
+        // revisión: 8 toques por evaluación, con el dedo y con un niño esperando.
+        // Con el padding anterior (10/8) el alto visible quedaba en ~31 dp.
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,

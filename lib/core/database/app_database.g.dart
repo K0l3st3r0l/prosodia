@@ -538,6 +538,28 @@ class $AssessmentSessionsTable extends AssessmentSessions
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _appBuildMeta = const VerificationMeta(
+    'appBuild',
+  );
+  @override
+  late final GeneratedColumn<int> appBuild = GeneratedColumn<int>(
+    'app_build',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _readingCplMeta = const VerificationMeta(
+    'readingCpl',
+  );
+  @override
+  late final GeneratedColumn<double> readingCpl = GeneratedColumn<double>(
+    'reading_cpl',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -552,6 +574,8 @@ class $AssessmentSessionsTable extends AssessmentSessions
     audioPath,
     synced,
     syncedAt,
+    appBuild,
+    readingCpl,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -653,6 +677,18 @@ class $AssessmentSessionsTable extends AssessmentSessions
         syncedAt.isAcceptableOrUnknown(data['synced_at']!, _syncedAtMeta),
       );
     }
+    if (data.containsKey('app_build')) {
+      context.handle(
+        _appBuildMeta,
+        appBuild.isAcceptableOrUnknown(data['app_build']!, _appBuildMeta),
+      );
+    }
+    if (data.containsKey('reading_cpl')) {
+      context.handle(
+        _readingCplMeta,
+        readingCpl.isAcceptableOrUnknown(data['reading_cpl']!, _readingCplMeta),
+      );
+    }
     return context;
   }
 
@@ -710,6 +746,14 @@ class $AssessmentSessionsTable extends AssessmentSessions
         DriftSqlType.dateTime,
         data['${effectivePrefix}synced_at'],
       ),
+      appBuild: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}app_build'],
+      ),
+      readingCpl: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}reading_cpl'],
+      ),
     );
   }
 
@@ -733,6 +777,19 @@ class AssessmentSession extends DataClass
   final String? audioPath;
   final bool synced;
   final DateTime? syncedAt;
+
+  /// Build de la app (`PackageInfo.buildNumber`) al momento de la evaluación.
+  ///
+  /// Nullable a propósito: las filas anteriores a esta columna quedan en
+  /// `null`, que es "condiciones desconocidas" — un dato correcto, no uno
+  /// faltante que haya que rellenar.
+  final int? appBuild;
+
+  /// Caracteres por línea **efectivos** del texto de lectura en el render real
+  /// de esa evaluación (ver `AppTypeScale.effectiveCplFor` y
+  /// `ReadingView.onReadingCplMeasured`). Varía por breakpoint y por el ancho
+  /// realmente disponible, no es la constante de diseño (~64).
+  final double? readingCpl;
   const AssessmentSession({
     required this.id,
     required this.studentId,
@@ -746,6 +803,8 @@ class AssessmentSession extends DataClass
     this.audioPath,
     required this.synced,
     this.syncedAt,
+    this.appBuild,
+    this.readingCpl,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -765,6 +824,12 @@ class AssessmentSession extends DataClass
     map['synced'] = Variable<bool>(synced);
     if (!nullToAbsent || syncedAt != null) {
       map['synced_at'] = Variable<DateTime>(syncedAt);
+    }
+    if (!nullToAbsent || appBuild != null) {
+      map['app_build'] = Variable<int>(appBuild);
+    }
+    if (!nullToAbsent || readingCpl != null) {
+      map['reading_cpl'] = Variable<double>(readingCpl);
     }
     return map;
   }
@@ -787,6 +852,12 @@ class AssessmentSession extends DataClass
       syncedAt: syncedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(syncedAt),
+      appBuild: appBuild == null && nullToAbsent
+          ? const Value.absent()
+          : Value(appBuild),
+      readingCpl: readingCpl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(readingCpl),
     );
   }
 
@@ -808,6 +879,8 @@ class AssessmentSession extends DataClass
       audioPath: serializer.fromJson<String?>(json['audioPath']),
       synced: serializer.fromJson<bool>(json['synced']),
       syncedAt: serializer.fromJson<DateTime?>(json['syncedAt']),
+      appBuild: serializer.fromJson<int?>(json['appBuild']),
+      readingCpl: serializer.fromJson<double?>(json['readingCpl']),
     );
   }
   @override
@@ -826,6 +899,8 @@ class AssessmentSession extends DataClass
       'audioPath': serializer.toJson<String?>(audioPath),
       'synced': serializer.toJson<bool>(synced),
       'syncedAt': serializer.toJson<DateTime?>(syncedAt),
+      'appBuild': serializer.toJson<int?>(appBuild),
+      'readingCpl': serializer.toJson<double?>(readingCpl),
     };
   }
 
@@ -842,6 +917,8 @@ class AssessmentSession extends DataClass
     Value<String?> audioPath = const Value.absent(),
     bool? synced,
     Value<DateTime?> syncedAt = const Value.absent(),
+    Value<int?> appBuild = const Value.absent(),
+    Value<double?> readingCpl = const Value.absent(),
   }) => AssessmentSession(
     id: id ?? this.id,
     studentId: studentId ?? this.studentId,
@@ -855,6 +932,8 @@ class AssessmentSession extends DataClass
     audioPath: audioPath.present ? audioPath.value : this.audioPath,
     synced: synced ?? this.synced,
     syncedAt: syncedAt.present ? syncedAt.value : this.syncedAt,
+    appBuild: appBuild.present ? appBuild.value : this.appBuild,
+    readingCpl: readingCpl.present ? readingCpl.value : this.readingCpl,
   );
   AssessmentSession copyWithCompanion(AssessmentSessionsCompanion data) {
     return AssessmentSession(
@@ -874,6 +953,10 @@ class AssessmentSession extends DataClass
       audioPath: data.audioPath.present ? data.audioPath.value : this.audioPath,
       synced: data.synced.present ? data.synced.value : this.synced,
       syncedAt: data.syncedAt.present ? data.syncedAt.value : this.syncedAt,
+      appBuild: data.appBuild.present ? data.appBuild.value : this.appBuild,
+      readingCpl: data.readingCpl.present
+          ? data.readingCpl.value
+          : this.readingCpl,
     );
   }
 
@@ -891,7 +974,9 @@ class AssessmentSession extends DataClass
           ..write('prosodia: $prosodia, ')
           ..write('audioPath: $audioPath, ')
           ..write('synced: $synced, ')
-          ..write('syncedAt: $syncedAt')
+          ..write('syncedAt: $syncedAt, ')
+          ..write('appBuild: $appBuild, ')
+          ..write('readingCpl: $readingCpl')
           ..write(')'))
         .toString();
   }
@@ -910,6 +995,8 @@ class AssessmentSession extends DataClass
     audioPath,
     synced,
     syncedAt,
+    appBuild,
+    readingCpl,
   );
   @override
   bool operator ==(Object other) =>
@@ -926,7 +1013,9 @@ class AssessmentSession extends DataClass
           other.prosodia == this.prosodia &&
           other.audioPath == this.audioPath &&
           other.synced == this.synced &&
-          other.syncedAt == this.syncedAt);
+          other.syncedAt == this.syncedAt &&
+          other.appBuild == this.appBuild &&
+          other.readingCpl == this.readingCpl);
 }
 
 class AssessmentSessionsCompanion extends UpdateCompanion<AssessmentSession> {
@@ -942,6 +1031,8 @@ class AssessmentSessionsCompanion extends UpdateCompanion<AssessmentSession> {
   final Value<String?> audioPath;
   final Value<bool> synced;
   final Value<DateTime?> syncedAt;
+  final Value<int?> appBuild;
+  final Value<double?> readingCpl;
   const AssessmentSessionsCompanion({
     this.id = const Value.absent(),
     this.studentId = const Value.absent(),
@@ -955,6 +1046,8 @@ class AssessmentSessionsCompanion extends UpdateCompanion<AssessmentSession> {
     this.audioPath = const Value.absent(),
     this.synced = const Value.absent(),
     this.syncedAt = const Value.absent(),
+    this.appBuild = const Value.absent(),
+    this.readingCpl = const Value.absent(),
   });
   AssessmentSessionsCompanion.insert({
     this.id = const Value.absent(),
@@ -969,6 +1062,8 @@ class AssessmentSessionsCompanion extends UpdateCompanion<AssessmentSession> {
     this.audioPath = const Value.absent(),
     this.synced = const Value.absent(),
     this.syncedAt = const Value.absent(),
+    this.appBuild = const Value.absent(),
+    this.readingCpl = const Value.absent(),
   }) : studentId = Value(studentId),
        fecha = Value(fecha),
        pcpm = Value(pcpm),
@@ -990,6 +1085,8 @@ class AssessmentSessionsCompanion extends UpdateCompanion<AssessmentSession> {
     Expression<String>? audioPath,
     Expression<bool>? synced,
     Expression<DateTime>? syncedAt,
+    Expression<int>? appBuild,
+    Expression<double>? readingCpl,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1004,6 +1101,8 @@ class AssessmentSessionsCompanion extends UpdateCompanion<AssessmentSession> {
       if (audioPath != null) 'audio_path': audioPath,
       if (synced != null) 'synced': synced,
       if (syncedAt != null) 'synced_at': syncedAt,
+      if (appBuild != null) 'app_build': appBuild,
+      if (readingCpl != null) 'reading_cpl': readingCpl,
     });
   }
 
@@ -1020,6 +1119,8 @@ class AssessmentSessionsCompanion extends UpdateCompanion<AssessmentSession> {
     Value<String?>? audioPath,
     Value<bool>? synced,
     Value<DateTime?>? syncedAt,
+    Value<int?>? appBuild,
+    Value<double?>? readingCpl,
   }) {
     return AssessmentSessionsCompanion(
       id: id ?? this.id,
@@ -1034,6 +1135,8 @@ class AssessmentSessionsCompanion extends UpdateCompanion<AssessmentSession> {
       audioPath: audioPath ?? this.audioPath,
       synced: synced ?? this.synced,
       syncedAt: syncedAt ?? this.syncedAt,
+      appBuild: appBuild ?? this.appBuild,
+      readingCpl: readingCpl ?? this.readingCpl,
     );
   }
 
@@ -1076,6 +1179,12 @@ class AssessmentSessionsCompanion extends UpdateCompanion<AssessmentSession> {
     if (syncedAt.present) {
       map['synced_at'] = Variable<DateTime>(syncedAt.value);
     }
+    if (appBuild.present) {
+      map['app_build'] = Variable<int>(appBuild.value);
+    }
+    if (readingCpl.present) {
+      map['reading_cpl'] = Variable<double>(readingCpl.value);
+    }
     return map;
   }
 
@@ -1093,7 +1202,9 @@ class AssessmentSessionsCompanion extends UpdateCompanion<AssessmentSession> {
           ..write('prosodia: $prosodia, ')
           ..write('audioPath: $audioPath, ')
           ..write('synced: $synced, ')
-          ..write('syncedAt: $syncedAt')
+          ..write('syncedAt: $syncedAt, ')
+          ..write('appBuild: $appBuild, ')
+          ..write('readingCpl: $readingCpl')
           ..write(')'))
         .toString();
   }
@@ -1808,6 +1919,8 @@ typedef $$AssessmentSessionsTableCreateCompanionBuilder =
       Value<String?> audioPath,
       Value<bool> synced,
       Value<DateTime?> syncedAt,
+      Value<int?> appBuild,
+      Value<double?> readingCpl,
     });
 typedef $$AssessmentSessionsTableUpdateCompanionBuilder =
     AssessmentSessionsCompanion Function({
@@ -1823,6 +1936,8 @@ typedef $$AssessmentSessionsTableUpdateCompanionBuilder =
       Value<String?> audioPath,
       Value<bool> synced,
       Value<DateTime?> syncedAt,
+      Value<int?> appBuild,
+      Value<double?> readingCpl,
     });
 
 final class $$AssessmentSessionsTableReferences
@@ -1922,6 +2037,16 @@ class $$AssessmentSessionsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get appBuild => $composableBuilder(
+    column: $table.appBuild,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get readingCpl => $composableBuilder(
+    column: $table.readingCpl,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$StudentsTableFilterComposer get studentId {
     final $$StudentsTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -2010,6 +2135,16 @@ class $$AssessmentSessionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get appBuild => $composableBuilder(
+    column: $table.appBuild,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get readingCpl => $composableBuilder(
+    column: $table.readingCpl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$StudentsTableOrderingComposer get studentId {
     final $$StudentsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -2080,6 +2215,14 @@ class $$AssessmentSessionsTableAnnotationComposer
   GeneratedColumn<DateTime> get syncedAt =>
       $composableBuilder(column: $table.syncedAt, builder: (column) => column);
 
+  GeneratedColumn<int> get appBuild =>
+      $composableBuilder(column: $table.appBuild, builder: (column) => column);
+
+  GeneratedColumn<double> get readingCpl => $composableBuilder(
+    column: $table.readingCpl,
+    builder: (column) => column,
+  );
+
   $$StudentsTableAnnotationComposer get studentId {
     final $$StudentsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -2149,6 +2292,8 @@ class $$AssessmentSessionsTableTableManager
                 Value<String?> audioPath = const Value.absent(),
                 Value<bool> synced = const Value.absent(),
                 Value<DateTime?> syncedAt = const Value.absent(),
+                Value<int?> appBuild = const Value.absent(),
+                Value<double?> readingCpl = const Value.absent(),
               }) => AssessmentSessionsCompanion(
                 id: id,
                 studentId: studentId,
@@ -2162,6 +2307,8 @@ class $$AssessmentSessionsTableTableManager
                 audioPath: audioPath,
                 synced: synced,
                 syncedAt: syncedAt,
+                appBuild: appBuild,
+                readingCpl: readingCpl,
               ),
           createCompanionCallback:
               ({
@@ -2177,6 +2324,8 @@ class $$AssessmentSessionsTableTableManager
                 Value<String?> audioPath = const Value.absent(),
                 Value<bool> synced = const Value.absent(),
                 Value<DateTime?> syncedAt = const Value.absent(),
+                Value<int?> appBuild = const Value.absent(),
+                Value<double?> readingCpl = const Value.absent(),
               }) => AssessmentSessionsCompanion.insert(
                 id: id,
                 studentId: studentId,
@@ -2190,6 +2339,8 @@ class $$AssessmentSessionsTableTableManager
                 audioPath: audioPath,
                 synced: synced,
                 syncedAt: syncedAt,
+                appBuild: appBuild,
+                readingCpl: readingCpl,
               ),
           withReferenceMapper: (p0) => p0
               .map(
