@@ -1,6 +1,6 @@
 {
-  "version": "1.0.35",
-  "build": 35,
-  "url": "https://ota.laravas.com/prosodia-latest.apk?v=35",
-  "changelog": "UI/UX adaptada para móviles: AppBar compacto, paneles proporcionales, scroll habilitado en galería de lecturas"
+  "version": "1.0.36",
+  "build": 36,
+  "url": "https://ota.laravas.com/prosodia-latest.apk?v=36",
+  "changelog": "Resalta palabras incorrectas u omitidas en el texto original"
 }
