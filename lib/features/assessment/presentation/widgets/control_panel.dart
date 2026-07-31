@@ -340,8 +340,12 @@ class _TimerCard extends StatelessWidget {
     final theme = Theme.of(context);
     final r = context.responsive;
     final recording = state == EvalState.recording;
-    final diameter = r.isShortViewport ? 36.0 : 48.0;
 
+    // El ícono interior se eliminó: repetía el que ya lleva el encabezado de la
+    // SectionCard (que además cambia a `fiber_manual_record` al grabar), y con
+    // él la cifra quedaba encajonada a la izquierda dejando media tarjeta vacía.
+    // El estado de grabación sigue siendo legible por el ícono del encabezado,
+    // el fondo `dangerSurface` y el color de la cifra.
     return SizedBox(
       key: cardKey,
       child: SectionCard(
@@ -352,7 +356,11 @@ class _TimerCard extends StatelessWidget {
             : Icons.timer_outlined,
         backgroundColor: recording ? AppTheme.dangerSurface : AppTheme.surface,
         child: Container(
-          padding: EdgeInsets.all(r.spacing.xl),
+          width: double.infinity,
+          padding: EdgeInsets.symmetric(
+            vertical: r.spacing.lg,
+            horizontal: r.spacing.md,
+          ),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(r.radii.card),
@@ -362,38 +370,26 @@ class _TimerCard extends StatelessWidget {
                   : theme.colorScheme.outline,
             ),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: diameter,
-                height: diameter,
-                decoration: BoxDecoration(
-                  color: recording ? AppTheme.dangerHalo : AppTheme.surfaceAlt,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  recording
-                      ? Icons.fiber_manual_record_rounded
-                      : Icons.timer_outlined,
-                  size: r.type.iconMd,
-                  color: recording ? AppTheme.danger : AppTheme.primary,
-                ),
-              ),
-              SizedBox(height: r.spacing.sm),
-              FittedBox(
-                fit: BoxFit.scaleDown,
+          // `scaleDown` nunca agranda: solo achica si la cifra no cabe en un
+          // contenedor angosto o con textScale alto. El tamaño manda desde la
+          // escala tipográfica.
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Semantics(
+              label: 'Tiempo transcurrido',
+              value: formatElapsed(elapsed),
+              child: ExcludeSemantics(
                 child: Text(
                   formatElapsed(elapsed),
                   style: r.type
                       .timer(theme.textTheme)
                       ?.copyWith(
                         color: recording ? AppTheme.danger : AppTheme.primary,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w800,
                       ),
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),

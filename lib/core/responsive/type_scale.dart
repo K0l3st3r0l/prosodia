@@ -55,6 +55,18 @@ class AppTypeScale {
   /// produce líneas de ~95 cpl.
   double get readingMaxWidth => readingSize * 32;
 
+  /// Ancho de la cifra `MM:SS` del cronómetro, como múltiplo del `fontSize`.
+  ///
+  /// Con `tabularFigures` los cuatro dígitos de Nunito comparten avance
+  /// (≈ 0.60 em, redondeado hacia arriba) y los dos puntos miden ≈ 0.32 em:
+  /// `4 × 0.60 + 0.32 = 2.72`.
+  ///
+  /// Es una constante documentada y no una medición porque `flutter_test` usa
+  /// una fuente donde cada glifo mide un em completo — casi el doble que
+  /// Nunito—, así que medir glifos en test no dice nada del dispositivo. Mismo
+  /// criterio que [readingMaxWidth], que asume ≈ 0.5 em para Source Serif 4.
+  static const double timerAdvanceMMSS = 2.72;
+
   /// Piso de caracteres por línea para lectura sostenida (ver rango legible
   /// 45–75 cpl documentado junto a [readingMaxWidth]).
   static const double _minReadableCpl = 45;
@@ -103,15 +115,35 @@ class AppTypeScale {
         color: color,
       );
 
+  /// Estilo del cronómetro.
+  ///
+  /// Ya no reutiliza un rol del `TextTheme`: desde que el cronómetro dejó de
+  /// compartir caja con un ícono y ocupa su tarjeta completa, funciona como
+  /// cifra de display y necesita su propia escala. Los roles generales
+  /// (`headlineMedium` 30, `displaySmall` 36) quedan chicos para una caja
+  /// dedicada de 320–460 dp de ancho.
+  ///
+  /// `tabularFigures` es lo que impide que la cifra baile: con avances
+  /// proporcionales los dígitos de Nunito tienen anchos distintos y el texto se
+  /// corre lateralmente en cada segundo, justo mientras el docente lo mira.
+  /// `letterSpacing: 0` revierte el tracking negativo de los roles de display,
+  /// que a este tamaño junta demasiado los dígitos.
   TextStyle? timer(TextTheme textTheme) {
-    switch (timerRole) {
-      case TimerRole.compact:
-        return textTheme.titleLarge;
-      case TimerRole.regular:
-        return textTheme.headlineMedium;
-      case TimerRole.large:
-        return textTheme.displaySmall;
-    }
+    // Ver [timerAdvanceMMSS] para el tope de ancho que respetan estos tamaños.
+    final size = switch (timerRole) {
+      // `compact` optimiza altura, no llenado horizontal: en un viewport bajo
+      // (teléfono en landscape) el panel de control ya viene apretado de alto y
+      // cada dp que gane el cronómetro se lo quita a los controles.
+      TimerRole.compact => 48.0,
+      TimerRole.regular => 56.0,
+      TimerRole.large => 80.0,
+    };
+    return textTheme.displaySmall?.copyWith(
+      fontSize: size,
+      height: 1.0,
+      letterSpacing: 0,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
   }
 
   /// Valor de los contadores de la revisión manual (palabras leídas, errores).
