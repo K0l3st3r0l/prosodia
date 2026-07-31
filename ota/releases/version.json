@@ -1,6 +1,6 @@
 {
-  "version": "1.0.39",
-  "build": 39,
-  "url": "https://ota.laravas.com/prosodia-latest.apk?v=39",
-  "changelog": "Modo lectura a pantalla completa en teléfono"
+  "version": "1.0.40",
+  "build": 40,
+  "url": "https://ota.laravas.com/prosodia-latest.apk?v=40",
+  "changelog": "Pantalla de inicio con modo prueba y cronómetro más grande"
 }
