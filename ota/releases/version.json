@@ -1,6 +1,6 @@
 {
-  "version": "1.0.41",
-  "build": 41,
-  "url": "https://ota.laravas.com/prosodia-latest.apk?v=41",
-  "changelog": "Corrige las lecturas que no aparecían en el modo prueba"
+  "version": "1.0.42",
+  "build": 42,
+  "url": "https://ota.laravas.com/prosodia-latest.apk?v=42",
+  "changelog": "Vista vertical más limpia y control de tamaño del texto de lectura"
 }
