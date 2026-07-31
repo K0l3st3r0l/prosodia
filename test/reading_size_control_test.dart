@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -174,6 +175,8 @@ void main() {
     });
   });
 
+  _contraste();
+
   group('Interacción del control', () {
     testWidgets('abrirlo reemplaza la barra y cerrarlo la restaura', (
       tester,
@@ -262,6 +265,75 @@ void main() {
       expect(reportadas, isNotEmpty);
       expect(reportadas.last, greaterThan(0.5));
       expect(reportadas.every((p) => p >= 0 && p <= 1), isTrue);
+    });
+  });
+}
+
+/// Contraste del cromo del modo foco.
+///
+/// La app fija iconos de barra de estado blancos en `main.dart` para el AppBar
+/// violeta. La barra del modo foco es casi blanca, así que todo lo que herede
+/// ese supuesto queda invisible — que es exactamente lo que pasó con el reloj y
+/// la batería, y lo que casi pasa con el único botón de cierre del control.
+void _contraste() {
+  group('Contraste sobre la barra clara', () {
+    Widget barAjustando() => MaterialApp(
+      theme: AppTheme.light,
+      home: ResponsiveScope(
+        builder: (context, r) => Scaffold(
+          appBar: ReadingModeBar(
+            height: ReadingModeBar.compactHeight,
+            elapsed: Duration.zero,
+            state: EvalState.idle,
+            onStart: () {},
+            onStop: () {},
+            onRepeat: () {},
+            onChangeReading: () {},
+            sizePosition: 0.5,
+            onSizePositionChanged: (_) {},
+          ),
+          body: const SizedBox.shrink(),
+        ),
+      ),
+    );
+
+    testWidgets('la barra pide iconos de sistema oscuros', (tester) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(640, 360);
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(barAjustando());
+
+      final region = tester.widget<AnnotatedRegion<SystemUiOverlayStyle>>(
+        find.byType(AnnotatedRegion<SystemUiOverlayStyle>).first,
+      );
+      expect(
+        region.value.statusBarIconBrightness,
+        Brightness.dark,
+        reason:
+            'Con los iconos blancos globales, el reloj y la batería quedan '
+            'invisibles sobre esta barra clara.',
+      );
+    });
+
+    testWidgets('"Listo" no depende de heredar su color', (tester) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(640, 360);
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(barAjustando());
+      await tester.tap(find.byTooltip('Tamaño del texto'));
+      await tester.pumpAndSettle();
+
+      final texto = tester.widget<Text>(find.text('Listo'));
+      expect(
+        texto.style?.color,
+        isNotNull,
+        reason:
+            'Es el único cierre del control: su color no puede quedar sujeto a '
+            'que la cadena de DefaultTextStyle lo resuelva.',
+      );
+      expect(texto.style!.color, isNot(AppTheme.surface));
     });
   });
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../core/responsive/responsive.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -99,65 +100,77 @@ class _ReadingModeBarState extends State<ReadingModeBar> {
     final puedeAjustar =
         widget.onSizePositionChanged != null && state == EvalState.idle;
 
-    return Material(
-      color: recording ? AppTheme.dangerSurface : AppTheme.surface,
-      child: SafeArea(
-        bottom: false,
-        child: SizedBox(
-          height: widget.height,
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: r.spacing.md),
-            child: _adjusting
-                ? _SizeControl(
-                    position: widget.sizePosition ?? 0.5,
-                    onChanged: widget.onSizePositionChanged!,
-                    onDone: () => setState(() => _adjusting = false),
-                  )
-                : Row(
-                    children: [
-                      if (onChangeReading != null) ...[
-                        IconButton(
-                          onPressed: onChangeReading,
-                          icon: const Icon(Icons.arrow_back_rounded),
-                          color: AppTheme.muted,
-                          tooltip: 'Cambiar lectura',
-                          // La barra reemplaza al AppBar, así que esta es la única
-                          // salida de la lectura: no puede quedar bajo el mínimo
-                          // táctil aunque el alto esté apretado. Va primero en la
-                          // fila —esquina izquierda, como el back estándar— porque
-                          // ahí es donde se busca "volver"; un swap_horiz junto al
-                          // cronómetro no se leía como salida.
-                          constraints: const BoxConstraints(
-                            minWidth: 48,
-                            minHeight: 48,
+    // La app fija iconos de barra de estado **blancos** en `main.dart`, porque
+    // el `AppBar` normal es violeta. Esta barra es casi blanca: con esa misma
+    // configuración el reloj, la señal y la batería quedan invisibles. Mientras
+    // el modo foco está en pantalla se piden iconos oscuros; Android restaura
+    // los globales solo al salir de la región.
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        statusBarColor: recording ? AppTheme.dangerSurface : AppTheme.surface,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+      ),
+      child: Material(
+        color: recording ? AppTheme.dangerSurface : AppTheme.surface,
+        child: SafeArea(
+          bottom: false,
+          child: SizedBox(
+            height: widget.height,
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: r.spacing.md),
+              child: _adjusting
+                  ? _SizeControl(
+                      position: widget.sizePosition ?? 0.5,
+                      onChanged: widget.onSizePositionChanged!,
+                      onDone: () => setState(() => _adjusting = false),
+                    )
+                  : Row(
+                      children: [
+                        if (onChangeReading != null) ...[
+                          IconButton(
+                            onPressed: onChangeReading,
+                            icon: const Icon(Icons.arrow_back_rounded),
+                            color: AppTheme.muted,
+                            tooltip: 'Cambiar lectura',
+                            // La barra reemplaza al AppBar, así que esta es la única
+                            // salida de la lectura: no puede quedar bajo el mínimo
+                            // táctil aunque el alto esté apretado. Va primero en la
+                            // fila —esquina izquierda, como el back estándar— porque
+                            // ahí es donde se busca "volver"; un swap_horiz junto al
+                            // cronómetro no se leía como salida.
+                            constraints: const BoxConstraints(
+                              minWidth: 48,
+                              minHeight: 48,
+                            ),
                           ),
-                        ),
-                        SizedBox(width: r.spacing.sm),
-                      ],
-                      _Elapsed(elapsed: elapsed, recording: recording),
-                      const Spacer(),
-                      if (puedeAjustar) ...[
-                        IconButton(
-                          onPressed: () => setState(() => _adjusting = true),
-                          icon: const Icon(Icons.format_size_rounded),
-                          color: AppTheme.muted,
-                          tooltip: 'Tamaño del texto',
-                          constraints: const BoxConstraints(
-                            minWidth: 48,
-                            minHeight: 48,
+                          SizedBox(width: r.spacing.sm),
+                        ],
+                        _Elapsed(elapsed: elapsed, recording: recording),
+                        const Spacer(),
+                        if (puedeAjustar) ...[
+                          IconButton(
+                            onPressed: () => setState(() => _adjusting = true),
+                            icon: const Icon(Icons.format_size_rounded),
+                            color: AppTheme.muted,
+                            tooltip: 'Tamaño del texto',
+                            constraints: const BoxConstraints(
+                              minWidth: 48,
+                              minHeight: 48,
+                            ),
                           ),
+                          SizedBox(width: r.spacing.sm),
+                        ],
+                        _Action(
+                          state: state,
+                          onStart: widget.onStart,
+                          onStop: widget.onStop,
+                          onRepeat: widget.onRepeat,
+                          textTheme: theme.textTheme,
                         ),
-                        SizedBox(width: r.spacing.sm),
                       ],
-                      _Action(
-                        state: state,
-                        onStart: widget.onStart,
-                        onStop: widget.onStop,
-                        onRepeat: widget.onRepeat,
-                        textTheme: theme.textTheme,
-                      ),
-                    ],
-                  ),
+                    ),
+            ),
           ),
         ),
       ),
@@ -314,13 +327,22 @@ class _SizeControl extends StatelessWidget {
           color: AppTheme.muted,
         ),
         SizedBox(width: r.spacing.md),
-        TextButton(
+        // Relleno y color explícitos, sin heredar nada. Un `TextButton` sobre
+        // esta superficie clara dependía de que la cadena de `DefaultTextStyle`
+        // resolviera el color: si algún día no resuelve, el texto se pinta
+        // blanco sobre blanco y el único cierre del control desaparece.
+        FilledButton(
           onPressed: onDone,
-          style: TextButton.styleFrom(
-            minimumSize: const Size(64, 48),
-            foregroundColor: AppTheme.primary,
+          style: FilledButton.styleFrom(
+            minimumSize: const Size(72, 48),
+            backgroundColor: AppTheme.primary,
+            foregroundColor: Colors.white,
+            padding: EdgeInsets.symmetric(horizontal: r.spacing.md),
           ),
-          child: Text('Listo', style: theme.textTheme.labelLarge),
+          child: Text(
+            'Listo',
+            style: theme.textTheme.labelLarge?.copyWith(color: Colors.white),
+          ),
         ),
       ],
     );
