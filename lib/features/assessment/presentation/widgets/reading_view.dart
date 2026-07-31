@@ -18,8 +18,14 @@ class ReadingView extends StatelessWidget {
     required this.studentName,
     required this.onChangeReading,
     required this.fillHeight,
+    this.focus = false,
     this.onReadingCplMeasured,
   });
+
+  /// Modo foco de teléfono: sin encabezado, sin tarjeta y con el nominal de
+  /// lectura subido, porque el texto tiene la pantalla completa. La salida
+  /// ([onChangeReading]) vive entonces en `ReadingModeBar`, no acá.
+  final bool focus;
 
   final ReadingText text;
   final String cursoLabel;
@@ -46,14 +52,20 @@ class ReadingView extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _ReadingHeader(
+        if (!focus) ...[
+          _ReadingHeader(
+            text: text,
+            cursoLabel: cursoLabel,
+            studentName: studentName,
+            onChangeReading: onChangeReading,
+          ),
+          SizedBox(height: r.spacing.lg),
+        ],
+        _ReadingBody(
           text: text,
-          cursoLabel: cursoLabel,
-          studentName: studentName,
-          onChangeReading: onChangeReading,
+          focus: focus,
+          onCplMeasured: onReadingCplMeasured,
         ),
-        SizedBox(height: r.spacing.lg),
-        _ReadingBody(text: text, onCplMeasured: onReadingCplMeasured),
       ],
     );
 
@@ -62,9 +74,14 @@ class ReadingView extends StatelessWidget {
 }
 
 class _ReadingBody extends StatelessWidget {
-  const _ReadingBody({required this.text, this.onCplMeasured});
+  const _ReadingBody({
+    required this.text,
+    required this.focus,
+    this.onCplMeasured,
+  });
 
   final ReadingText text;
+  final bool focus;
   final ValueChanged<double>? onCplMeasured;
 
   @override
@@ -72,16 +89,26 @@ class _ReadingBody extends StatelessWidget {
     final theme = Theme.of(context);
     final r = context.responsive;
 
+    // En modo foco el bloque no es una tarjeta dentro de un panel: es la
+    // pantalla. Sin borde ni radio, y con el nominal subido, porque ya no hay
+    // cromo con el que competir.
+    final nominal = focus ? r.type.readingFocusSize : r.type.readingSize;
+    final maxWidth = nominal * 32;
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(
-        r.pick(phone: 18.0, tablet: 24.0, tabletLarge: 28.0),
+        focus
+            ? r.spacing.md
+            : r.pick(phone: 18.0, tablet: 24.0, tabletLarge: 28.0),
       ),
-      decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(r.radii.surface),
-        border: Border.all(color: AppTheme.surfaceStrong),
-      ),
+      decoration: focus
+          ? null
+          : BoxDecoration(
+              color: AppTheme.surface,
+              borderRadius: BorderRadius.circular(r.radii.surface),
+              border: Border.all(color: AppTheme.surfaceStrong),
+            ),
       // La medida se acota a ~64 caracteres por línea y el bloque se centra en
       // el espacio sobrante. Aprovechar el ancho de una tablet grande no
       // significa estirar el párrafo hasta 95 caracteres.
@@ -93,19 +120,22 @@ class _ReadingBody extends StatelessWidget {
             // arriba: es el mismo número que ve el `ConstrainedBox`, solo que
             // medido antes de que él lo recorte a `readingMaxWidth`. Con eso
             // el cpl reportado refleja el render real, no el tope de diseño.
-            final effectiveWidth = constraints.maxWidth < r.type.readingMaxWidth
+            final effectiveWidth = constraints.maxWidth < maxWidth
                 ? constraints.maxWidth
-                : r.type.readingMaxWidth;
+                : maxWidth;
             // El tamaño nominal por breakpoint asume ancho de sobra. Un
             // contenedor más angosto (teléfono portrait, tablet portrait con
             // panel de control) lo reduce para sostener el piso de 45 cpl.
-            final renderedSize = r.type.readingSizeFor(effectiveWidth);
+            final renderedSize = r.type.readingSizeFor(
+              effectiveWidth,
+              nominal: nominal,
+            );
             onCplMeasured?.call(
               r.type.effectiveCplFor(effectiveWidth, fontSize: renderedSize),
             );
 
             return ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: r.type.readingMaxWidth),
+              constraints: BoxConstraints(maxWidth: maxWidth),
               child: Text(
                 text.contenido,
                 style: r.type.reading(theme.textTheme, fontSize: renderedSize),

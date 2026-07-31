@@ -28,6 +28,7 @@ import 'widgets/assessment_placeholders.dart';
 import 'widgets/context_charts.dart';
 import 'widgets/control_panel.dart';
 import 'widgets/manual_review_form.dart';
+import 'widgets/reading_mode_bar.dart';
 import 'widgets/reading_gallery.dart';
 import 'widgets/reading_view.dart';
 import 'widgets/review_panel.dart';
@@ -536,37 +537,104 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
   Widget build(BuildContext context) {
     // El `AppBar` decide su altura desde `preferredSize`, un getter sin
     // contexto, así que la clase de viewport se resuelve aquí.
-    final compactBar = MediaQuery.sizeOf(context).height < kShortViewportHeight;
+    final size = MediaQuery.sizeOf(context);
+    final compactBar = size.height < kShortViewportHeight;
+
+    // Modo foco: teléfono con una lectura abierta. Se decide acá y no dentro del
+    // `ResponsiveScope` porque cambia cuál barra recibe el `Scaffold`, y esa
+    // decisión tiene que estar tomada antes de que se lea `preferredSize`.
+    final focusMode =
+        AppBreakpoint.fromShortestSide(size.shortestSide).isPhone &&
+        _selectedTexto != null;
 
     return ResponsiveScope(
       builder: (context, screen) => Scaffold(
-        appBar: AssessmentAppBar(
-          compact: compactBar,
-          state: _state,
-          syncing: _syncing,
-          checkingUpdate: _checkingUpdate,
-          onTitleTap: _onTitleTap,
-          onCheckUpdate: _checkForUpdate,
-          onSync: _syncAndLoad,
-          onLogout: _logout,
-        ),
+        appBar: focusMode
+            ? ReadingModeBar(
+                height: compactBar
+                    ? ReadingModeBar.compactHeight
+                    : ReadingModeBar.regularHeight,
+                elapsed: _elapsed,
+                state: _state,
+                onStart: _startRecording,
+                onStop: _stopRecording,
+                // Conserva alumno y lectura: repetir es volver a medir al mismo
+                // niño con el mismo texto, no empezar de cero.
+                onRepeat: () => setState(
+                  () => _resetSession(clearStudent: false),
+                ),
+                onChangeReading: _state == EvalState.idle
+                    ? () => setState(() => _setSelectedTexto(null))
+                    : null,
+              )
+            : AssessmentAppBar(
+                compact: compactBar,
+                state: _state,
+                syncing: _syncing,
+                checkingUpdate: _checkingUpdate,
+                onTitleTap: _onTitleTap,
+                onCheckUpdate: _checkForUpdate,
+                onSync: _syncAndLoad,
+                onLogout: _logout,
+              ),
         body: ColoredBox(
-          color: AppTheme.appBackground,
+          color: focusMode ? AppTheme.surface : AppTheme.appBackground,
           // En landscape —la orientación de producción— el recorte de pantalla
           // y la barra de gestos quedan en los bordes laterales, justo donde
           // vive el panel de control.
           child: SafeArea(
             top: false,
             child: ResponsiveScope(
-              builder: (context, r) => AssessmentLayout(
-                workAreaFirst:
-                    _selectedTexto != null || _state != EvalState.idle,
-                controlPanel: _buildControlPanel(r),
-                workArea: _buildWorkArea(r),
-              ),
+              builder: (context, r) => focusMode
+                  ? _buildFocusBody(r)
+                  : AssessmentLayout(
+                      workAreaFirst:
+                          _selectedTexto != null || _state != EvalState.idle,
+                      controlPanel: _buildControlPanel(r),
+                      workArea: _buildWorkArea(r),
+                    ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  /// Cuerpo del modo foco.
+  ///
+  /// Mientras el niño lee, solo el texto. Al terminar aparecen abajo los
+  /// resultados y la revisión manual, sin devolver la barra con logo y botones:
+  /// esos controles siguen sin servir para nada en ese momento y le quitarían
+  /// alto a las palabras resaltadas, que es lo que el docente está mirando.
+  Widget _buildFocusBody(Responsive r) {
+    if (_state == EvalState.reviewing) {
+      return SingleChildScrollView(
+        padding: EdgeInsets.all(r.spacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildWorkArea(r),
+            SizedBox(height: r.spacing.xl),
+            _buildManualReview(),
+          ],
+        ),
+      );
+    }
+
+    if (_state == EvalState.analyzing) return _buildWorkArea(r);
+
+    final texto = _selectedTexto;
+    if (texto == null) return _buildWorkArea(r);
+
+    return SingleChildScrollView(
+      child: ReadingView(
+        text: texto,
+        cursoLabel: _selectedCurso ?? '',
+        studentName: _selectedStudent?.nombreCompleto,
+        onChangeReading: null,
+        fillHeight: false,
+        focus: true,
+        onReadingCplMeasured: (v) => _readingCpl = v,
       ),
     );
   }

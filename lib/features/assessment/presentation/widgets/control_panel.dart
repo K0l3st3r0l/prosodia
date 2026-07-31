@@ -84,18 +84,25 @@ class AssessmentControlPanel extends StatelessWidget {
             cursoLabel: selectedCurso ?? '',
           ),
         ],
-        SizedBox(height: r.spacing.xl),
-        _TimerCard(cardKey: timerKey, elapsed: elapsed, state: state),
-        SizedBox(height: r.spacing.md),
-        if (state == EvalState.analyzing)
-          const _ProcessingCard()
-        else if (state != EvalState.reviewing)
-          _RecordButton(
-            state: state,
-            onStart: onStartRecording,
-            onStop: onStopRecording,
-            enabled: selectedStudent != null && selectedTexto != null,
-          ),
+        // En teléfono el cronómetro y el control de grabación viven en
+        // `ReadingModeBar`, no acá: el panel solo se ve mientras no hay lectura
+        // abierta, y en ese momento no hay nada que cronometrar ni que grabar.
+        // Mostrarlos sería ofrecer dos controles para lo mismo, uno de ellos
+        // siempre deshabilitado.
+        if (!r.breakpoint.isPhone) ...[
+          SizedBox(height: r.spacing.xl),
+          _TimerCard(cardKey: timerKey, elapsed: elapsed, state: state),
+          SizedBox(height: r.spacing.md),
+          if (state == EvalState.analyzing)
+            const _ProcessingCard()
+          else if (state != EvalState.reviewing)
+            _RecordButton(
+              state: state,
+              onStart: onStartRecording,
+              onStop: onStopRecording,
+              enabled: selectedStudent != null && selectedTexto != null,
+            ),
+        ],
         if (manualReview != null) ...[
           SizedBox(height: r.spacing.xl),
           manualReview!,

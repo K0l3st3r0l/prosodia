@@ -76,6 +76,14 @@ class AppTypeScale {
   /// angosto (p. ej. 316 dp de ancho útil en un teléfono portrait de 360 dp).
   static const double _minReadingSize = 14;
 
+  /// Tamaño nominal de lectura en **modo foco** (teléfono, sin cromo alrededor).
+  ///
+  /// Sube un tercio sobre el nominal porque el texto pasa a tener la pantalla
+  /// completa: con el nominal, el bloque queda topado en [readingMaxWidth] y
+  /// desperdicia ancho real. En un teléfono de 640 dp en landscape, 24 sp llenan
+  /// el ancho disponible y dejan ~50 cpl, dentro del rango legible de 45–75.
+  double get readingFocusSize => readingSize * 4 / 3;
+
   /// Tamaño de fuente de lectura para un ancho de render dado.
   ///
   /// [readingSize] asume un ancho de al menos [readingMaxWidth] — el caso de
@@ -83,9 +91,12 @@ class AppTypeScale {
   /// (teléfono en portrait, o tablet en portrait donde el panel de control le
   /// resta ancho al área de trabajo) el tamaño nominal produce menos de 45
   /// cpl. Se reduce hasta sostener el piso, sin bajar de [_minReadingSize].
-  double readingSizeFor(double renderedWidth) {
+  /// [nominal] permite pasar un techo distinto de [readingSize] — lo usa el modo
+  /// foco con [readingFocusSize]. El piso de cpl y el de legibilidad se aplican
+  /// igual, así que subir el nominal nunca puede sacar al texto del rango.
+  double readingSizeFor(double renderedWidth, {double? nominal}) {
     final sizeForFloor = renderedWidth / (_minReadableCpl * 0.5);
-    return sizeForFloor.clamp(_minReadingSize, readingSize);
+    return sizeForFloor.clamp(_minReadingSize, nominal ?? readingSize);
   }
 
   /// Caracteres por línea **efectivos** para un ancho y tamaño de fuente de

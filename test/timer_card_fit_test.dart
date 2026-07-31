@@ -42,13 +42,29 @@ void main() {
     totalPalabras: 288,
   );
 
+  /// Solo tablets: en teléfono la tarjeta del cronómetro no existe en el panel
+  /// de control — el tiempo y el control de grabación viven en
+  /// `ReadingModeBar`. Eso lo cubre el último test de este archivo.
   const viewports = <({String name, Size landscape})>[
-    (name: '640x360 · teléfono', landscape: Size(640, 360)),
-    (name: '891x411 · teléfono', landscape: Size(891, 411)),
     (name: '1024x768 · tablet', landscape: Size(1024, 768)),
     (name: '1280x800 · tablet', landscape: Size(1280, 800)),
     (name: '1920x1200 · tablet grande', landscape: Size(1920, 1200)),
   ];
+
+  Widget panelAt(Size size, Widget Function(Responsive) build) => MaterialApp(
+    theme: AppTheme.light,
+    home: Scaffold(
+      body: ResponsiveScope(
+        builder: (context, r) => Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox(
+            width: r.controlPanelWidth,
+            child: SingleChildScrollView(child: build(r)),
+          ),
+        ),
+      ),
+    ),
+  );
 
   for (final viewport in viewports) {
     testWidgets('la cifra cabe sin escalarse — ${viewport.name}', (
@@ -59,36 +75,24 @@ void main() {
       addTearDown(tester.view.reset);
 
       await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light,
-          home: Scaffold(
-            body: ResponsiveScope(
-              builder: (context, r) => Align(
-                alignment: Alignment.topLeft,
-                child: SizedBox(
-                  width: r.controlPanelWidth,
-                  child: SingleChildScrollView(
-                    child: AssessmentControlPanel(
-                      state: EvalState.recording,
-                      cursos: const ['1°A', '4°B'],
-                      selectedCurso: '4°B',
-                      onCursoChanged: (_) {},
-                      studentsInCurso: [student],
-                      selectedStudent: student,
-                      onStudentChanged: (_) {},
-                      selectedTexto: reading,
-                      elapsed: const Duration(minutes: 8, seconds: 47),
-                      timerKey: const ValueKey('timer'),
-                      onStartRecording: () {},
-                      onStopRecording: () {},
-                      manualReview: null,
-                      scrollController: null,
-                      scrollable: false,
-                    ),
-                  ),
-                ),
-              ),
-            ),
+        panelAt(
+          viewport.landscape,
+          (r) => AssessmentControlPanel(
+            state: EvalState.recording,
+            cursos: const ['1°A', '4°B'],
+            selectedCurso: '4°B',
+            onCursoChanged: (_) {},
+            studentsInCurso: [student],
+            selectedStudent: student,
+            onStudentChanged: (_) {},
+            selectedTexto: reading,
+            elapsed: const Duration(minutes: 8, seconds: 47),
+            timerKey: const ValueKey('timer'),
+            onStartRecording: () {},
+            onStopRecording: () {},
+            manualReview: null,
+            scrollController: null,
+            scrollable: false,
           ),
         ),
       );
@@ -138,4 +142,45 @@ void main() {
       }
     });
   }
+
+  testWidgets('en teléfono el cronómetro no vive en el panel de control', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(640, 360);
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      panelAt(
+        const Size(640, 360),
+        (r) => AssessmentControlPanel(
+          state: EvalState.idle,
+          cursos: const ['1°A', '4°B'],
+          selectedCurso: '4°B',
+          onCursoChanged: (_) {},
+          studentsInCurso: [student],
+          selectedStudent: student,
+          onStudentChanged: (_) {},
+          selectedTexto: null,
+          elapsed: Duration.zero,
+          timerKey: const ValueKey('timer'),
+          onStartRecording: () {},
+          onStopRecording: () {},
+          manualReview: null,
+          scrollController: null,
+          scrollable: false,
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('timer')),
+      findsNothing,
+      reason:
+          'En teléfono el panel solo se ve mientras no hay lectura abierta, así '
+          'que no hay nada que cronometrar. El cronómetro y el control de '
+          'grabación viven en ReadingModeBar.',
+    );
+    expect(find.text('Iniciar evaluación'), findsNothing);
+  });
 }
