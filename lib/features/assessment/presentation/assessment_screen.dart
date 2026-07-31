@@ -814,6 +814,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
         courseStats: _courseStats,
         studentHistory: _studentHistory,
         loadingContext: _loadingContext,
+        showContextCharts: !widget.trial,
         suggestions: buildSuggestions(
           nivelLogro: nivelLogro,
           calidad: _calidad,

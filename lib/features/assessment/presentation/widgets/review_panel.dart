@@ -181,6 +181,7 @@ class ReviewPanel extends StatelessWidget {
     required this.courseStats,
     required this.studentHistory,
     required this.loadingContext,
+    required this.showContextCharts,
     required this.suggestions,
     required this.scrollController,
     required this.fillHeight,
@@ -202,6 +203,12 @@ class ReviewPanel extends StatelessWidget {
   final CourseStats? courseStats;
   final List<StudentHistory> studentHistory;
   final bool loadingContext;
+
+  /// Los dos gráficos de contexto comparan a un alumno con su curso y con su
+  /// propio historial. En modo prueba no hay ni alumno ni servidor: se ocultan
+  /// en vez de mostrar dos tarjetas diciendo «Sin datos del servidor», que hace
+  /// ver el modo como roto cuando en realidad está funcionando como debe.
+  final bool showContextCharts;
   final List<String> suggestions;
 
   final ScrollController? scrollController;
@@ -272,19 +279,21 @@ class ReviewPanel extends StatelessWidget {
               calidad: calidad,
               prosodia: prosodia,
             ),
-            SizedBox(height: r.spacing.lg),
-            CourseDistributionChart(
-              stats: courseStats,
-              currentCategory: velocidad,
-              loading: loadingContext,
-            ),
-            SizedBox(height: r.spacing.lg),
-            StudentProgressionChart(
-              history: studentHistory,
-              currentPcpm: pcpm,
-              courseAverage: courseStats?.promedioPcpm,
-              loading: loadingContext,
-            ),
+            if (showContextCharts) ...[
+              SizedBox(height: r.spacing.lg),
+              CourseDistributionChart(
+                stats: courseStats,
+                currentCategory: velocidad,
+                loading: loadingContext,
+              ),
+              SizedBox(height: r.spacing.lg),
+              StudentProgressionChart(
+                history: studentHistory,
+                currentPcpm: pcpm,
+                courseAverage: courseStats?.promedioPcpm,
+                loading: loadingContext,
+              ),
+            ],
             SizedBox(height: r.spacing.lg),
             SuggestionsCard(suggestions: suggestions),
           ],

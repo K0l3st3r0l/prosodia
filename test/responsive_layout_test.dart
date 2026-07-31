@@ -446,6 +446,7 @@ void main() {
           manualReview: manualReviewForm(r),
         ),
         workArea: ReviewPanel(
+          showContextCharts: true,
           whisperFailed: false,
           originalText: reading.contenido,
           totalWords: reading.totalPalabras,
@@ -481,6 +482,7 @@ void main() {
           manualReview: manualReviewForm(r),
         ),
         workArea: ReviewPanel(
+          showContextCharts: true,
           whisperFailed: true,
           originalText: reading.contenido,
           totalWords: reading.totalPalabras,
