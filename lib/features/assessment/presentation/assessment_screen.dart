@@ -17,6 +17,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../features/students/data/student_repository.dart';
 import '../../../features/debug/log_screen.dart';
 import '../data/assessment_repository.dart';
+import '../data/reading_size_preference.dart';
 import '../data/stats_repository.dart';
 import '../../../features/ota_update/ota_service.dart';
 import '../../auth/presentation/login_screen.dart';
@@ -94,6 +95,15 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
   // cambió a `analyzing`/`reviewing` y `ReadingView` no está montado.
   double? _readingCpl;
 
+  // Control de tamaño del texto (modo foco). `_readingSizePosition` en null
+  // significa "sin preferencia": el texto usa el tamaño nominal de siempre.
+  // `_readingWidth` lo reporta `ReadingView` tras medir su ancho útil, y sin él
+  // no se puede ofrecer el control porque los topes del rango legible se
+  // derivan de ese ancho.
+  final ReadingSizePreference _readingSizePref = ReadingSizePreference();
+  double? _readingSizePosition;
+  double? _nominalSizePosition;
+
   // Análisis Whisper
   String? _transcript;
   bool _whisperFailed = false;
@@ -117,6 +127,11 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
     _leftPanelScrollController = ScrollController();
     _rightPanelScrollController = ScrollController();
     _syncAndLoad();
+    _readingSizePref.read().then((position) {
+      if (mounted && position != null) {
+        setState(() => _readingSizePosition = position);
+      }
+    });
   }
 
   @override
@@ -642,6 +657,10 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
                 onChangeReading: _state == EvalState.idle
                     ? () => setState(() => _setSelectedTexto(null))
                     : null,
+                sizePosition: _readingSizePosition ?? _nominalSizePosition,
+                onSizePositionChanged: _nominalSizePosition == null
+                    ? null
+                    : _onReadingSizeChanged,
               )
             : AssessmentAppBar(
                 compact: compactBar,
@@ -669,6 +688,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
                           _selectedTexto != null || _state != EvalState.idle,
                       controlPanel: _buildControlPanel(r),
                       workArea: _buildWorkArea(r),
+                      showWorkArea: _showWorkArea(r),
                     ),
             ),
           ),
@@ -711,9 +731,32 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
         onChangeReading: null,
         fillHeight: false,
         focus: true,
+        sizePosition: _readingSizePosition,
         onReadingCplMeasured: (v) => _readingCpl = v,
+        onSizeControlReady: _onSizeControlReady,
       ),
     );
+  }
+
+  /// Recibe de `ReadingView` la posición equivalente al tamaño nominal, que
+  /// sirve para dos cosas: colocar el pulgar del slider la primera vez y avisar
+  /// que ya hay una medición real con la que ofrecer el control.
+  ///
+  /// Llega durante el layout, así que el `setState` se difiere al final del
+  /// frame — reconstruir en pleno pintado lanza excepción de framework. Solo
+  /// reacciona a cambios reales para no encadenar frames.
+  void _onSizeControlReady(double position) {
+    if (_nominalSizePosition == position) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _nominalSizePosition != position) {
+        setState(() => _nominalSizePosition = position);
+      }
+    });
+  }
+
+  void _onReadingSizeChanged(double position) {
+    setState(() => _readingSizePosition = position);
+    _readingSizePref.write(position);
   }
 
   Widget _buildControlPanel(Responsive r) {
@@ -839,12 +882,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
       );
     }
 
-    // Lo que habilita elegir lectura no es haber alumno, sino haber terminado
-    // la preparación: en modo prueba esa preparación es solo el curso.
-    final preparacionLista =
-        widget.trial ? _selectedCurso != null : _selectedStudent != null;
-
-    if (preparacionLista && _textos.isNotEmpty) {
+    if (_preparacionLista && _textos.isNotEmpty) {
       return ReadingGallery(
         texts: _textos,
         studentName: _selectedStudent?.nombreCompleto,
@@ -866,5 +904,26 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
       showStudent: !widget.trial,
       fillHeight: fill,
     );
+  }
+
+  /// Lo que habilita elegir lectura no es haber alumno, sino haber terminado
+  /// la preparación: en modo prueba esa preparación es solo el curso.
+  bool get _preparacionLista =>
+      widget.trial ? _selectedCurso != null : _selectedStudent != null;
+
+  /// En composición apilada, si el área de trabajo aporta algo que el panel de
+  /// control —siempre visible primero en ese caso— no muestre ya.
+  ///
+  /// Mientras la preparación está incompleta, el área de trabajo sería
+  /// `AssessmentEmptyState` repitiendo "todo listo para comenzar" y el mismo
+  /// paso pendiente que ya señalan los propios controles de "Preparación"
+  /// (dropdown vacío) y `WorkflowChips` en el encabezado. Una vez lista, si no
+  /// hay lecturas para el curso, el mensaje es información que el panel de
+  /// control no puede dar — ahí sí se muestra. `dual` no cambia: son columnas
+  /// independientes y la de trabajo siempre se dibuja.
+  bool _showWorkArea(Responsive r) {
+    if (r.paneStrategy.isDual) return true;
+    if (_state != EvalState.idle || _selectedTexto != null) return true;
+    return _preparacionLista;
   }
 }

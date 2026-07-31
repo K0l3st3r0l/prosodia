@@ -77,14 +77,21 @@ class AssessmentEmptyState extends StatelessWidget {
                   height: 1.5,
                 ),
               ),
-              SizedBox(height: r.spacing.xl),
-              WorkflowChips(
-                hasCurso: hasCurso,
-                hasStudent: hasStudent,
-                hasReading: hasReading,
-                showStudent: showStudent,
-                alignment: WrapAlignment.center,
-              ),
+              // En `dual` el panel de control vive en otra columna: estas
+              // pastillas son el único progreso visible en esta mitad de la
+              // pantalla. En `stacked` el encabezado del panel de control ya
+              // las muestra arriba, en el mismo scroll — repetirlas acá sería
+              // el mismo dato dos veces.
+              if (r.paneStrategy.isDual) ...[
+                SizedBox(height: r.spacing.xl),
+                WorkflowChips(
+                  hasCurso: hasCurso,
+                  hasStudent: hasStudent,
+                  hasReading: hasReading,
+                  showStudent: showStudent,
+                  alignment: WrapAlignment.center,
+                ),
+              ],
             ],
           ),
         ),

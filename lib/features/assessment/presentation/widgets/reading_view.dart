@@ -19,13 +19,33 @@ class ReadingView extends StatelessWidget {
     required this.onChangeReading,
     required this.fillHeight,
     this.focus = false,
+    this.sizePosition,
     this.onReadingCplMeasured,
+    this.onSizeControlReady,
   });
+
+  /// Posición del control de tamaño (0 = letra más chica del rango legible,
+  /// 1 = más grande). `null` mantiene el comportamiento nominal de siempre:
+  /// mientras el docente no toque el control, el texto se ve exactamente igual
+  /// que antes de que el control existiera.
+  final double? sizePosition;
 
   /// Modo foco de teléfono: sin encabezado, sin tarjeta y con el nominal de
   /// lectura subido, porque el texto tiene la pantalla completa. La salida
   /// ([onChangeReading]) vive entonces en `ReadingModeBar`, no acá.
   final bool focus;
+
+  /// Posición del control de tamaño equivalente al tamaño **nominal**, medida
+  /// sobre el ancho útil real.
+  ///
+  /// Va hacia arriba porque el control vive en `ReadingModeBar`, pero tanto el
+  /// ancho como la escala tipográfica correcta solo se conocen acá. Se reporta
+  /// ya resuelta —y no el ancho crudo— para que nadie tenga que reproducir el
+  /// cálculo de layout afuera, que es justo lo que se desincroniza.
+  ///
+  /// Que llegue no nulo es además la señal de que el control se puede ofrecer:
+  /// sin una medición real no hay con qué acotar el rango legible.
+  final ValueChanged<double>? onSizeControlReady;
 
   final ReadingText text;
   final String cursoLabel;
@@ -64,7 +84,9 @@ class ReadingView extends StatelessWidget {
         _ReadingBody(
           text: text,
           focus: focus,
+          sizePosition: sizePosition,
           onCplMeasured: onReadingCplMeasured,
+          onSizeControlReady: onSizeControlReady,
         ),
       ],
     );
@@ -77,12 +99,16 @@ class _ReadingBody extends StatelessWidget {
   const _ReadingBody({
     required this.text,
     required this.focus,
+    this.sizePosition,
     this.onCplMeasured,
+    this.onSizeControlReady,
   });
 
   final ReadingText text;
   final bool focus;
+  final double? sizePosition;
   final ValueChanged<double>? onCplMeasured;
+  final ValueChanged<double>? onSizeControlReady;
 
   @override
   Widget build(BuildContext context) {
@@ -93,7 +119,13 @@ class _ReadingBody extends StatelessWidget {
     // pantalla. Sin borde ni radio, y con el nominal subido, porque ya no hay
     // cromo con el que competir.
     final nominal = focus ? r.type.readingFocusSize : r.type.readingSize;
-    final maxWidth = nominal * 32;
+
+    // El tope de ancho existe para que la línea no se estire más allá del rango
+    // legible con el tamaño nominal. Cuando el tamaño lo fija el control, esa
+    // garantía ya la da `readingSizeAtPosition`, y mantener el tope derivado del
+    // nominal volvería circular el cálculo: el ancho acotaría el tamaño que a su
+    // vez debería definir el ancho.
+    final maxWidth = sizePosition == null ? nominal * 32 : double.infinity;
 
     return Container(
       width: double.infinity,
@@ -126,9 +158,19 @@ class _ReadingBody extends StatelessWidget {
             // El tamaño nominal por breakpoint asume ancho de sobra. Un
             // contenedor más angosto (teléfono portrait, tablet portrait con
             // panel de control) lo reduce para sostener el piso de 45 cpl.
-            final renderedSize = r.type.readingSizeFor(
-              effectiveWidth,
-              nominal: nominal,
+            // Con preferencia guardada el tamaño sale del control, ya acotado
+            // al rango legible por `readingSizeAtPosition`. Sin ella, la ruta
+            // de siempre.
+            final posicion = sizePosition;
+            final renderedSize = posicion == null
+                ? r.type.readingSizeFor(effectiveWidth, nominal: nominal)
+                : r.type.readingSizeAtPosition(effectiveWidth, posicion);
+
+            onSizeControlReady?.call(
+              r.type.readingPositionOf(
+                effectiveWidth,
+                r.type.readingSizeFor(effectiveWidth, nominal: nominal),
+              ),
             );
             onCplMeasured?.call(
               r.type.effectiveCplFor(effectiveWidth, fontSize: renderedSize),

@@ -99,6 +99,50 @@ class AppTypeScale {
     return sizeForFloor.clamp(_minReadingSize, nominal ?? readingSize);
   }
 
+  /// Techo de caracteres por línea del rango legible, contraparte de
+  /// [_minReadableCpl]. Sobre 75 cpl la línea es tan larga que cuesta encontrar
+  /// el renglón siguiente.
+  static const double _maxReadableCpl = 75;
+
+  /// Extremos del control de tamaño de lectura, **derivados del ancho real**.
+  ///
+  /// De `cpl = ancho / (tamaño × 0.5)` se despeja `tamaño = 2 × ancho / cpl`:
+  /// más letra son menos caracteres por línea, así que el mínimo del control
+  /// sale del techo de cpl y el máximo del piso.
+  ///
+  /// No son constantes a propósito. El mismo `sp` produce cpl distinto en cada
+  /// pantalla, así que un rango fijo tipo `16..27` —que es lo que sale de *un*
+  /// teléfono— dejaría el texto fuera del rango legible en cualquier otra.
+  ///
+  /// El piso de [_minReadingSize] manda sobre el techo de cpl: en un contenedor
+  /// muy angosto, antes que empujar la letra bajo lo legible se acepta quedar
+  /// sobre 75 cpl. Misma política que [readingSizeFor].
+  ({double min, double max}) readingSizeRange(double renderedWidth) {
+    final porTechoDeCpl = 2 * renderedWidth / _maxReadableCpl;
+    final porPisoDeCpl = 2 * renderedWidth / _minReadableCpl;
+    final min = porTechoDeCpl.clamp(_minReadingSize, double.infinity);
+    return (min: min, max: porPisoDeCpl.clamp(min, double.infinity));
+  }
+
+  /// Tamaño de lectura para una posición del control, donde 0 es la letra más
+  /// chica del rango y 1 la más grande.
+  double readingSizeAtPosition(double renderedWidth, double position) {
+    final range = readingSizeRange(renderedWidth);
+    return range.min + (range.max - range.min) * position.clamp(0.0, 1.0);
+  }
+
+  /// Posición del control que reproduce [size] en [renderedWidth].
+  ///
+  /// Se usa para colocar el pulgar del slider la primera vez, cuando todavía no
+  /// hay preferencia guardada: así el control aparece justo donde está el
+  /// tamaño que la app ya venía mostrando.
+  double readingPositionOf(double renderedWidth, double size) {
+    final range = readingSizeRange(renderedWidth);
+    final span = range.max - range.min;
+    if (span <= 0) return 0;
+    return ((size - range.min) / span).clamp(0.0, 1.0);
+  }
+
   /// Caracteres por línea **efectivos** para un ancho y tamaño de fuente de
   /// render dados. Con el tamaño de [readingSizeFor] el resultado converge a
   /// 45–75 cpl incluso cuando el contenedor real es más angosto que

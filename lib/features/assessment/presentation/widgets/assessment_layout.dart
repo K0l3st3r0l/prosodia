@@ -16,6 +16,7 @@ class AssessmentLayout extends StatelessWidget {
     required this.controlPanel,
     required this.workArea,
     required this.workAreaFirst,
+    this.showWorkArea = true,
   });
 
   final Widget controlPanel;
@@ -25,6 +26,13 @@ class AssessmentLayout extends StatelessWidget {
   /// hay una lectura abierta: en ese momento el texto es lo que el docente y el
   /// estudiante están mirando, y el panel de control pasa a segundo plano.
   final bool workAreaFirst;
+
+  /// En composición apilada, si el área de trabajo se dibuja como segundo
+  /// panel. `false` cuando no aporta nada que el panel de control —siempre
+  /// visible primero en ese caso— no muestre ya (ver `AssessmentScreen`). No
+  /// afecta a `dual`: ahí son dos columnas independientes y la de trabajo
+  /// siempre se dibuja.
+  final bool showWorkArea;
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +59,16 @@ class AssessmentLayout extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      );
+    }
+
+    if (!showWorkArea) {
+      return SingleChildScrollView(
+        padding: EdgeInsets.all(r.spacing.gutter),
+        child: SurfacePanel(
+          padding: EdgeInsets.all(r.spacing.lg),
+          child: controlPanel,
         ),
       );
     }

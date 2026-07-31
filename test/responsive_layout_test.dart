@@ -16,6 +16,7 @@ import 'package:prosodia/features/assessment/presentation/widgets/manual_review_
 import 'package:prosodia/features/assessment/presentation/widgets/reading_gallery.dart';
 import 'package:prosodia/features/assessment/presentation/widgets/reading_view.dart';
 import 'package:prosodia/features/assessment/presentation/widgets/review_panel.dart';
+import 'package:prosodia/features/assessment/presentation/widgets/surfaces.dart';
 
 /// Verificación de desbordamiento por viewport.
 ///
@@ -303,6 +304,178 @@ void main() {
         ),
       ),
     );
+  });
+
+  group('Estado inicial en apilado — sin duplicación', () {
+    // Reproduce la decisión de `_AssessmentScreenState._showWorkArea`: en
+    // apilado, mientras la preparación está incompleta el panel de control ya
+    // muestra qué falta (dropdown vacío + `WorkflowChips` en su encabezado),
+    // así que el segundo panel (`AssessmentEmptyState`) no se dibuja. Con la
+    // preparación lista y sin lecturas para el curso, el prompt sí aporta algo
+    // que el panel de control no puede dar, así que se mantiene — pero sin su
+    // propia copia de `WorkflowChips`, que ya está arriba. `dual` no cambia.
+    const stacked = Size(640, 360); // ancho 640 < 720 ⇒ stacked
+    const dual = Size(1280, 800); // ancho 1280 ≥ 720 ⇒ dual
+
+    Widget controlPanelFor({required bool hasCurso, required bool scrollable}) =>
+        AssessmentControlPanel(
+          trial: false,
+          state: EvalState.idle,
+          cursos: const ['1°A', '4°B'],
+          selectedCurso: hasCurso ? '4°B' : null,
+          onCursoChanged: (_) {},
+          studentsInCurso: hasCurso ? [student] : const [],
+          selectedStudent: hasCurso ? student : null,
+          onStudentChanged: (_) {},
+          selectedTexto: null,
+          elapsed: Duration.zero,
+          timerKey: const ValueKey('timer'),
+          onStartRecording: _noop,
+          onStopRecording: _noop,
+          manualReview: null,
+          scrollController: null,
+          scrollable: scrollable,
+        );
+
+    testWidgets(
+      'preparación incompleta: el segundo panel no se dibuja',
+      (tester) async {
+        tester.view.devicePixelRatio = 1.0;
+        tester.view.physicalSize = stacked;
+        addTearDown(tester.view.reset);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.light,
+            home: Scaffold(
+              body: ResponsiveScope(
+                builder: (context, r) => AssessmentLayout(
+                  workAreaFirst: false,
+                  controlPanel: controlPanelFor(
+                    hasCurso: false,
+                    scrollable: r.paneStrategy.isDual,
+                  ),
+                  workArea: const AssessmentEmptyState(
+                    prompt: 'Selecciona un curso',
+                    hasCurso: false,
+                    hasStudent: false,
+                    hasReading: false,
+                    fillHeight: false,
+                  ),
+                  showWorkArea: false,
+                ),
+              ),
+            ),
+          ),
+        );
+
+        expect(
+          find.byType(WorkflowChips),
+          findsOneWidget,
+          reason:
+              'Solo sobrevive el encabezado del panel de control; el estado '
+              'vacío no aporta nada nuevo mientras falta elegir curso.',
+        );
+        expect(
+          find.text('Todo listo para comenzar'),
+          findsNothing,
+          reason:
+              'El panel de control, visible arriba, ya dice qué falta — no se '
+              'repite en un segundo cuadro.',
+        );
+      },
+    );
+
+    testWidgets(
+      'preparación lista sin lecturas: se mantiene sin duplicar las pastillas',
+      (tester) async {
+        tester.view.devicePixelRatio = 1.0;
+        tester.view.physicalSize = stacked;
+        addTearDown(tester.view.reset);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.light,
+            home: Scaffold(
+              body: ResponsiveScope(
+                builder: (context, r) => AssessmentLayout(
+                  workAreaFirst: false,
+                  controlPanel: controlPanelFor(
+                    hasCurso: true,
+                    scrollable: r.paneStrategy.isDual,
+                  ),
+                  workArea: const AssessmentEmptyState(
+                    prompt: 'No hay lecturas disponibles para este curso',
+                    hasCurso: true,
+                    hasStudent: true,
+                    hasReading: false,
+                    fillHeight: false,
+                  ),
+                  showWorkArea: true,
+                ),
+              ),
+            ),
+          ),
+        );
+
+        expect(
+          find.byType(WorkflowChips),
+          findsOneWidget,
+          reason:
+              'El estado vacío deja de mostrar sus propias pastillas en '
+              'apilado: ya están en el encabezado, justo arriba.',
+        );
+        expect(
+          find.text('No hay lecturas disponibles para este curso'),
+          findsOneWidget,
+          reason:
+              'Esta sí es información que el panel de control no puede dar, '
+              'así que el cuadro se mantiene.',
+        );
+      },
+    );
+
+    testWidgets('dual no cambia: ambas copias de WorkflowChips se mantienen', (
+      tester,
+    ) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = dual;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: Scaffold(
+            body: ResponsiveScope(
+              builder: (context, r) => AssessmentLayout(
+                workAreaFirst: false,
+                controlPanel: controlPanelFor(
+                  hasCurso: false,
+                  scrollable: r.paneStrategy.isDual,
+                ),
+                workArea: const AssessmentEmptyState(
+                  prompt: 'Selecciona un curso',
+                  hasCurso: false,
+                  hasStudent: false,
+                  hasReading: false,
+                  fillHeight: true,
+                ),
+                showWorkArea: true,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        find.byType(WorkflowChips),
+        findsNWidgets(2),
+        reason:
+            'En dual los paneles son columnas independientes: el estado '
+            'vacío conserva sus propias pastillas — no se toca el '
+            'comportamiento de tablet.',
+      );
+    });
   });
 
   group('Galería de lecturas', () {

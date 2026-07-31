@@ -87,7 +87,9 @@ void main() {
   });
 
   group('Salida de la lectura', () {
-    testWidgets('en reposo existe y respeta el mínimo táctil', (tester) async {
+    testWidgets('en reposo existe, se lee como retroceso y respeta el mínimo táctil', (
+      tester,
+    ) async {
       await tester.pumpWidget(barAt(EvalState.idle, onChangeReading: () {}));
 
       final boton = find.byTooltip('Cambiar lectura');
@@ -98,9 +100,41 @@ void main() {
             'La barra reemplaza al AppBar, así que esta es la única salida de '
             'la lectura. Si no está, el docente queda encerrado.',
       );
+      expect(
+        find.descendant(
+          of: boton,
+          matching: find.byIcon(Icons.arrow_back_rounded),
+        ),
+        findsOneWidget,
+        reason:
+            'swap_horiz se leía como "intercambiar", no como "volver". '
+            'arrow_back es el afordance de retroceso estándar.',
+      );
+      expect(
+        find.byIcon(Icons.swap_horiz_rounded),
+        findsNothing,
+        reason: 'El ícono ambiguo no debe seguir en la barra.',
+      );
       final size = tester.getSize(boton);
       expect(size.width, greaterThanOrEqualTo(48));
       expect(size.height, greaterThanOrEqualTo(48));
+    });
+
+    testWidgets('va antes que el cronómetro, donde se busca "volver"', (
+      tester,
+    ) async {
+      await tester.pumpWidget(barAt(EvalState.idle, onChangeReading: () {}));
+
+      final botonX = tester.getTopLeft(find.byTooltip('Cambiar lectura')).dx;
+      final tiempoX = tester.getTopLeft(find.text('02:14')).dx;
+      expect(
+        botonX,
+        lessThan(tiempoX),
+        reason:
+            'Como el back estándar de Material, va en el extremo izquierdo de '
+            'la barra — no pegado al cronómetro, donde vivía como swap_horiz '
+            'sin lectura de "atrás".',
+      );
     });
 
     testWidgets('grabando no se puede cambiar la lectura', (tester) async {
