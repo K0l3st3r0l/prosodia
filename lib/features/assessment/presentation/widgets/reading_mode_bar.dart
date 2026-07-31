@@ -131,14 +131,7 @@ class _Elapsed extends StatelessWidget {
           child: ExcludeSemantics(
             child: Text(
               formatElapsed(elapsed),
-              // `titleLarge` y no el rol del cronómetro grande: acá la cifra
-              // comparte una franja de ~64 dp con el botón de acción, no tiene
-              // una tarjeta para ella sola.
-              style: theme.textTheme.titleLarge?.copyWith(
-                color: color,
-                fontWeight: FontWeight.w800,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
+              style: r.type.timerBar(theme.textTheme)?.copyWith(color: color),
             ),
           ),
         ),

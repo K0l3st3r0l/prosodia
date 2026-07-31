@@ -157,6 +157,26 @@ class AppTypeScale {
     );
   }
 
+  /// Cronómetro de `ReadingModeBar`.
+  ///
+  /// Más chico que [timer] —esa cifra tiene una tarjeta para ella sola— pero
+  /// bastante más grande que un rol de título: comparte la franja con un botón
+  /// de 48 dp de alto, y con un rol de 20 sp al lado de ese botón el tiempo se
+  /// leía como un detalle en vez de como el dato principal de la barra.
+  TextStyle? timerBar(TextTheme textTheme) {
+    final size = switch (timerRole) {
+      TimerRole.compact => 32.0,
+      TimerRole.regular => 36.0,
+      TimerRole.large => 40.0,
+    };
+    return textTheme.displaySmall?.copyWith(
+      fontSize: size,
+      height: 1.0,
+      letterSpacing: 0,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
+  }
+
   /// Valor de los contadores de la revisión manual (palabras leídas, errores).
   TextStyle? counterValue(TextTheme textTheme) => textTheme.headlineSmall;
 

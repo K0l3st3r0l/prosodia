@@ -102,6 +102,23 @@ class AppDatabase extends _$AppDatabase {
         ),
       );
 
+  /// Niveles que tienen lecturas sembradas, ordenados.
+  ///
+  /// Es la fuente de cursos del **modo prueba**: ahí no hay sesión iniciada ni
+  /// alumnos sincronizados, así que la lista no puede salir de la tabla de
+  /// estudiantes como en el flujo normal. Las lecturas se siembran localmente
+  /// al arrancar, así que esto funciona sin red y sin credenciales.
+  Future<List<String>> getNivelesConLecturas() async {
+    final rows = await (selectOnly(readingTexts, distinct: true)
+          ..addColumns([readingTexts.nivel])
+          ..orderBy([OrderingTerm.asc(readingTexts.nivel)]))
+        .get();
+    return rows
+        .map((r) => r.read(readingTexts.nivel))
+        .whereType<String>()
+        .toList();
+  }
+
   Future<List<ReadingText>> getTextsByNivel(String nivel) =>
       (select(readingTexts)
             ..where((t) => t.nivel.equals(nivel))

@@ -7,8 +7,9 @@ import 'core/network/api_client.dart';
 import 'core/auth/auth_repository.dart';
 import 'core/reading_texts_seed.dart';
 import 'core/responsive/orientation_lock.dart';
-import 'features/auth/presentation/login_screen.dart';
-import 'features/assessment/presentation/assessment_screen.dart';
+// `dbProvider` vive junto a la pantalla que lo consume.
+import 'features/assessment/presentation/assessment_screen.dart' show dbProvider;
+import 'features/landing/presentation/landing_screen.dart';
 import 'features/ota_update/ota_service.dart';
 
 void main() async {
@@ -59,7 +60,10 @@ class ProsodIAApp extends StatelessWidget {
       title: 'ProsodIA',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      home: startLoggedIn ? const AssessmentScreen() : const LoginScreen(),
+      // La elección de modo va siempre primero, incluso con sesión iniciada:
+      // es la única puerta al modo prueba, y esconderla tras el login obligaría
+      // a cerrar sesión para llegar a ella.
+      home: LandingScreen(startLoggedIn: startLoggedIn),
     );
   }
 }

@@ -78,6 +78,7 @@ void main() {
         panelAt(
           viewport.landscape,
           (r) => AssessmentControlPanel(
+            trial: false,
             state: EvalState.recording,
             cursos: const ['1°A', '4°B'],
             selectedCurso: '4°B',
@@ -154,6 +155,7 @@ void main() {
       panelAt(
         const Size(640, 360),
         (r) => AssessmentControlPanel(
+          trial: false,
           state: EvalState.idle,
           cursos: const ['1°A', '4°B'],
           selectedCurso: '4°B',

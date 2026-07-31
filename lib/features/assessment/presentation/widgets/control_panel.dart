@@ -12,6 +12,7 @@ import 'surfaces.dart';
 class AssessmentControlPanel extends StatelessWidget {
   const AssessmentControlPanel({
     super.key,
+    required this.trial,
     required this.state,
     required this.cursos,
     required this.selectedCurso,
@@ -28,6 +29,11 @@ class AssessmentControlPanel extends StatelessWidget {
     required this.scrollController,
     required this.scrollable,
   });
+
+  /// Modo prueba: sin alumno. El panel muestra solo la selección de curso, y el
+  /// botón de grabación se habilita con curso + lectura en vez de alumno +
+  /// lectura.
+  final bool trial;
 
   final EvalState state;
 
@@ -64,12 +70,14 @@ class AssessmentControlPanel extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         _WorkflowHeader(
+          trial: trial,
           hasCurso: selectedCurso != null,
           hasStudent: selectedStudent != null,
           hasReading: selectedTexto != null,
         ),
         SizedBox(height: r.spacing.md),
         _PreparationCard(
+          trial: trial,
           cursos: cursos,
           selectedCurso: selectedCurso,
           onCursoChanged: onCursoChanged,
@@ -100,7 +108,9 @@ class AssessmentControlPanel extends StatelessWidget {
               state: state,
               onStart: onStartRecording,
               onStop: onStopRecording,
-              enabled: selectedStudent != null && selectedTexto != null,
+              enabled:
+                  (trial ? selectedCurso != null : selectedStudent != null) &&
+                  selectedTexto != null,
             ),
         ],
         if (manualReview != null) ...[
@@ -117,11 +127,13 @@ class AssessmentControlPanel extends StatelessWidget {
 
 class _WorkflowHeader extends StatelessWidget {
   const _WorkflowHeader({
+    required this.trial,
     required this.hasCurso,
     required this.hasStudent,
     required this.hasReading,
   });
 
+  final bool trial;
   final bool hasCurso;
   final bool hasStudent;
   final bool hasReading;
@@ -191,6 +203,7 @@ class _WorkflowHeader extends StatelessWidget {
             hasCurso: hasCurso,
             hasStudent: hasStudent,
             hasReading: hasReading,
+            showStudent: !trial,
           ),
         ],
       ),
@@ -200,6 +213,7 @@ class _WorkflowHeader extends StatelessWidget {
 
 class _PreparationCard extends StatelessWidget {
   const _PreparationCard({
+    required this.trial,
     required this.cursos,
     required this.selectedCurso,
     required this.onCursoChanged,
@@ -208,6 +222,7 @@ class _PreparationCard extends StatelessWidget {
     required this.onStudentChanged,
   });
 
+  final bool trial;
   final List<String> cursos;
   final String? selectedCurso;
   final ValueChanged<String?>? onCursoChanged;
@@ -222,7 +237,9 @@ class _PreparationCard extends StatelessWidget {
 
     return SectionCard(
       title: 'Preparación',
-      subtitle: 'Selecciona curso y estudiante antes de elegir la lectura.',
+      subtitle: trial
+          ? 'Selecciona el curso para ver sus lecturas.'
+          : 'Selecciona curso y estudiante antes de elegir la lectura.',
       icon: Icons.how_to_reg_rounded,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -243,27 +260,31 @@ class _PreparationCard extends StatelessWidget {
             ],
             onChanged: onCursoChanged,
           ),
-          SizedBox(height: r.spacing.md),
-          Text('Estudiante', style: theme.textTheme.titleSmall),
-          SizedBox(height: r.spacing.sm),
-          DropdownButtonFormField<Student>(
-            value: selectedStudent,
-            isExpanded: true,
-            decoration: const InputDecoration(
-              hintText: 'Seleccionar estudiante',
-            ),
-            items: [
-              for (final student in studentsInCurso)
-                DropdownMenuItem(
-                  value: student,
-                  child: Text(
-                    student.nombreCompleto,
-                    overflow: TextOverflow.ellipsis,
+          // En modo prueba no hay alumno: no hay sesión con la cual haberlos
+          // sincronizado, y el resultado no se guarda contra nadie.
+          if (!trial) ...[
+            SizedBox(height: r.spacing.md),
+            Text('Estudiante', style: theme.textTheme.titleSmall),
+            SizedBox(height: r.spacing.sm),
+            DropdownButtonFormField<Student>(
+              value: selectedStudent,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                hintText: 'Seleccionar estudiante',
+              ),
+              items: [
+                for (final student in studentsInCurso)
+                  DropdownMenuItem(
+                    value: student,
+                    child: Text(
+                      student.nombreCompleto,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                ),
-            ],
-            onChanged: onStudentChanged,
-          ),
+              ],
+              onChanged: onStudentChanged,
+            ),
+          ],
         ],
       ),
     );

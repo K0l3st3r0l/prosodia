@@ -139,12 +139,17 @@ class WorkflowChips extends StatelessWidget {
     required this.hasCurso,
     required this.hasStudent,
     required this.hasReading,
+    this.showStudent = true,
     this.alignment = WrapAlignment.start,
   });
 
   final bool hasCurso;
   final bool hasStudent;
   final bool hasReading;
+
+  /// El modo prueba no tiene paso de estudiante. Mostrar una pastilla que nunca
+  /// se completa haría ver el flujo como incompleto para siempre.
+  final bool showStudent;
   final WrapAlignment alignment;
 
   @override
@@ -157,8 +162,12 @@ class WorkflowChips extends StatelessWidget {
       runSpacing: gap,
       children: [
         WorkflowChip(label: '1. Curso', active: hasCurso),
-        WorkflowChip(label: '2. Estudiante', active: hasStudent),
-        WorkflowChip(label: '3. Lectura', active: hasReading),
+        if (showStudent)
+          WorkflowChip(label: '2. Estudiante', active: hasStudent),
+        WorkflowChip(
+          label: showStudent ? '3. Lectura' : '2. Lectura',
+          active: hasReading,
+        ),
       ],
     );
   }

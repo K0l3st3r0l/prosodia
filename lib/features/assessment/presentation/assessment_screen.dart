@@ -38,7 +38,19 @@ export 'eval_state.dart';
 final dbProvider = Provider<AppDatabase>((ref) => throw UnimplementedError());
 
 class AssessmentScreen extends ConsumerStatefulWidget {
-  const AssessmentScreen({super.key});
+  const AssessmentScreen({super.key, this.trial = false});
+
+  /// Modo prueba: sin sesión iniciada, sin alumno y **sin guardar nada**.
+  ///
+  /// Sirve para mostrar o practicar la app sin tocar los datos reales. Los
+  /// cursos salen de los niveles con lecturas sembradas y no de los alumnos
+  /// sincronizados, porque acá no hay credenciales con las que sincronizar.
+  ///
+  /// Nada se persiste ni se sincroniza: `AssessmentSessions.studentId` es una
+  /// FK obligatoria y el endpoint de anahuac rechaza un POST sin `student_id`.
+  /// Guardar exigiría cambios de esquema en los dos lados, y una evaluación de
+  /// práctica no tiene por qué entrar a la serie longitudinal de UTP.
+  final bool trial;
 
   @override
   ConsumerState<AssessmentScreen> createState() => _AssessmentScreenState();
@@ -120,8 +132,25 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
     super.dispose();
   }
 
+  /// Curso con el que se clasifica el resultado.
+  ///
+  /// En el flujo normal es el del alumno; en modo prueba no hay alumno, pero
+  /// `AssessmentCalculator` clasifica por curso, así que basta el seleccionado.
+  String get _cursoParaClasificar =>
+      _selectedStudent?.curso ?? _selectedCurso ?? '';
+
   Future<void> _syncAndLoad() async {
     final db = ref.read(dbProvider);
+
+    if (widget.trial) {
+      // Sin sesión no hay estudiantes que traer ni evaluaciones que subir. Los
+      // "cursos" son los niveles que tienen lecturas sembradas localmente.
+      final niveles = await db.getNivelesConLecturas();
+      if (!mounted) return;
+      setState(() => _cursos = niveles.map((n) => '$n° básico').toList());
+      return;
+    }
+
     final local = await db.getAllStudents();
     if (mounted) _updateStudentLists(local);
 
@@ -171,7 +200,11 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
   void _onCursoChanged(String? curso) async {
     if (curso == null) return;
     final db = ref.read(dbProvider);
-    final students = await db.getStudentsByCurso(curso);
+    // En modo prueba el "curso" es un nivel ("3° básico") y no hay alumnos que
+    // buscar; el regex de nivel funciona igual para ambas formas.
+    final students = widget.trial
+        ? <Student>[]
+        : await db.getStudentsByCurso(curso);
     // Extraer número de nivel del curso ("2°A" → "2")
     final nivel = RegExp(r'\d+').firstMatch(curso)?.group(0) ?? '';
     final textos = nivel.isNotEmpty
@@ -237,6 +270,41 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
     } finally {
       if (mounted) setState(() => _checkingUpdate = false);
     }
+  }
+
+  /// Salida del modo prueba: vuelve a la pantalla de inicio.
+  ///
+  /// No hay sesión que cerrar ni nada que guardar, así que basta con soltar la
+  /// ruta. Se confirma igual porque una evaluación a medias se pierde entera.
+  Future<void> _exitTrial() async {
+    final haySesionEmpezada =
+        _selectedTexto != null || _state != EvalState.idle;
+
+    if (haySesionEmpezada) {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Salir de la prueba'),
+          content: const Text(
+            'La prueba no guarda resultados, así que lo que hiciste se pierde. '
+            '¿Quieres salir igual?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Salir'),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true) return;
+    }
+
+    if (mounted) Navigator.of(context).pop();
   }
 
   Future<void> _logout() async {
@@ -425,7 +493,6 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
   }
 
   Future<void> _saveEvaluation() async {
-    if (_selectedStudent == null) return;
     final db = ref.read(dbProvider);
     final segundos = _elapsed.inSeconds.toDouble();
     final pcpm = AssessmentCalculator.calcularPcpm(
@@ -435,12 +502,19 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
     );
     final nivelLogro = AssessmentCalculator.clasificarNivelLogro(
       pcpm,
-      _selectedStudent!.curso,
+      _cursoParaClasificar,
     );
     final velocidad = AssessmentCalculator.clasificarVelocidad(
       pcpm,
-      _selectedStudent!.curso,
+      _cursoParaClasificar,
     );
+
+    // El resultado se muestra igual —para eso es la prueba— pero no se persiste
+    // ni se sincroniza. Ver `AssessmentScreen.trial`.
+    if (widget.trial || _selectedStudent == null) {
+      _showResult(pcpm, velocidad, nivelLogro);
+      return;
+    }
 
     final packageInfo = await PackageInfo.fromPlatform();
     final appBuild = int.tryParse(packageInfo.buildNumber) ?? kAppBuild;
@@ -522,7 +596,9 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
 
   String _selectionPrompt() {
     if (_selectedCurso == null) return 'Selecciona un curso';
-    if (_selectedStudent == null) return 'Selecciona un estudiante';
+    if (!widget.trial && _selectedStudent == null) {
+      return 'Selecciona un estudiante';
+    }
     if (_textos.isEmpty) return 'No hay lecturas disponibles para este curso';
     return 'Selecciona una lectura\ny luego inicia la evaluación';
   }
@@ -569,13 +645,14 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
               )
             : AssessmentAppBar(
                 compact: compactBar,
+                trial: widget.trial,
                 state: _state,
                 syncing: _syncing,
                 checkingUpdate: _checkingUpdate,
                 onTitleTap: _onTitleTap,
                 onCheckUpdate: _checkForUpdate,
                 onSync: _syncAndLoad,
-                onLogout: _logout,
+                onLogout: widget.trial ? _exitTrial : _logout,
               ),
         body: ColoredBox(
           color: focusMode ? AppTheme.surface : AppTheme.appBackground,
@@ -643,6 +720,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
     final idle = _state == EvalState.idle;
 
     return AssessmentControlPanel(
+      trial: widget.trial,
       state: _state,
       cursos: _cursos,
       selectedCurso: _selectedCurso,
@@ -712,14 +790,14 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
     }
 
     if (_state == EvalState.reviewing) {
-      final student = _selectedStudent;
+      final curso = _cursoParaClasificar;
       final pcpm = _currentPcpm;
-      final velocidad = student == null
+      final velocidad = curso.isEmpty
           ? '—'
-          : AssessmentCalculator.clasificarVelocidad(pcpm, student.curso);
-      final nivelLogro = student == null
+          : AssessmentCalculator.clasificarVelocidad(pcpm, curso);
+      final nivelLogro = curso.isEmpty
           ? '—'
-          : AssessmentCalculator.clasificarNivelLogro(pcpm, student.curso);
+          : AssessmentCalculator.clasificarNivelLogro(pcpm, curso);
 
       return ReviewPanel(
         whisperFailed: _whisperFailed,

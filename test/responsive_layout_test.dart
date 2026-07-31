@@ -205,6 +205,7 @@ void main() {
     Widget? manualReview,
   }) {
     return AssessmentControlPanel(
+      trial: false,
       state: state,
       cursos: const ['1°A', '2°B', '4°B', '8°A'],
       selectedCurso: '4°B',
@@ -255,6 +256,7 @@ void main() {
       (context, r) => Scaffold(
         appBar: AssessmentAppBar(
           compact: r.isShortViewport,
+          trial: false,
           state: EvalState.analyzing,
           syncing: true,
           checkingUpdate: false,
@@ -275,6 +277,7 @@ void main() {
       (context, r) => AssessmentLayout(
         workAreaFirst: false,
         controlPanel: AssessmentControlPanel(
+          trial: false,
           state: EvalState.idle,
           cursos: const ['1°A', '4°B'],
           selectedCurso: null,
@@ -589,6 +592,7 @@ void main() {
             builder: (context, r) => Scaffold(
               appBar: AssessmentAppBar(
                 compact: r.isShortViewport,
+                trial: false,
                 state: EvalState.idle,
                 syncing: false,
                 checkingUpdate: false,

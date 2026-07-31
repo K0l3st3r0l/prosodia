@@ -17,6 +17,7 @@ class AssessmentAppBar extends StatelessWidget implements PreferredSizeWidget {
   const AssessmentAppBar({
     super.key,
     required this.compact,
+    required this.trial,
     required this.state,
     required this.syncing,
     required this.checkingUpdate,
@@ -31,6 +32,9 @@ class AssessmentAppBar extends StatelessWidget implements PreferredSizeWidget {
   /// el espacio de la barra: si la altura declarada y la usada divergen, queda
   /// una franja vacía o el contenido se recorta.
   final bool compact;
+
+  /// Modo prueba: sin sesión iniciada. Cambia qué acciones tienen sentido.
+  final bool trial;
 
   final EvalState state;
   final bool syncing;
@@ -140,17 +144,20 @@ class AssessmentAppBar extends StatelessWidget implements PreferredSizeWidget {
             tooltip: 'Buscar actualización',
             onPressed: state == EvalState.idle ? onCheckUpdate : null,
           ),
-        if (syncing)
-          const _ActionSpinner()
-        else
-          _HeaderAction(
-            icon: Icons.sync,
-            tooltip: 'Sincronizar estudiantes',
-            onPressed: state == EvalState.idle ? onSync : null,
-          ),
+        // En modo prueba no hay sesión ni estudiantes que sincronizar: el botón
+        // solo podría fallar con un 401.
+        if (!trial)
+          if (syncing)
+            const _ActionSpinner()
+          else
+            _HeaderAction(
+              icon: Icons.sync,
+              tooltip: 'Sincronizar estudiantes',
+              onPressed: state == EvalState.idle ? onSync : null,
+            ),
         _HeaderAction(
-          icon: Icons.logout,
-          tooltip: 'Cerrar sesión',
+          icon: trial ? Icons.close_rounded : Icons.logout,
+          tooltip: trial ? 'Salir de la prueba' : 'Cerrar sesión',
           onPressed: state == EvalState.idle ? onLogout : null,
         ),
         SizedBox(width: r.spacing.sm),
