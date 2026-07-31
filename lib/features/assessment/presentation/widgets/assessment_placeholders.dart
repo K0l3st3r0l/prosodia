@@ -30,12 +30,16 @@ class AssessmentEmptyState extends StatelessWidget {
     required this.hasStudent,
     required this.hasReading,
     required this.fillHeight,
+    this.showStudent = true,
   });
 
   final String prompt;
   final bool hasCurso;
   final bool hasStudent;
   final bool hasReading;
+
+  /// El modo prueba no tiene paso de estudiante.
+  final bool showStudent;
 
   /// `true` cuando el widget recibe altura acotada y hace scroll por su cuenta.
   /// En composición apilada el scroll lo pone el padre y anidar dos
@@ -78,6 +82,7 @@ class AssessmentEmptyState extends StatelessWidget {
                 hasCurso: hasCurso,
                 hasStudent: hasStudent,
                 hasReading: hasReading,
+                showStudent: showStudent,
                 alignment: WrapAlignment.center,
               ),
             ],

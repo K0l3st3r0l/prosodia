@@ -1,6 +1,6 @@
 {
-  "version": "1.0.38",
-  "build": 38,
-  "url": "https://ota.laravas.com/prosodia-latest.apk?v=38",
-  "changelog": "Cronómetro más grande y legible en toda la tarjeta"
+  "version": "1.0.39",
+  "build": 39,
+  "url": "https://ota.laravas.com/prosodia-latest.apk?v=39",
+  "changelog": "Modo lectura a pantalla completa en teléfono"
 }

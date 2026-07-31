@@ -143,7 +143,9 @@ class ReadingGallery extends StatelessWidget {
   });
 
   final List<ReadingText> texts;
-  final String studentName;
+
+  /// `null` en modo prueba: ahí no hay alumno a quien nombrar.
+  final String? studentName;
   final ValueChanged<ReadingText>? onSelect;
 
   /// `true` cuando la galería recibe una altura acotada y debe hacer scroll por
@@ -157,9 +159,11 @@ class ReadingGallery extends StatelessWidget {
 
     final header = SectionCard(
       title: 'Lecturas disponibles',
-      subtitle:
-          'Selecciona una lectura para $studentName. '
-          'Cada tarjeta incluye una portada visual del texto.',
+      subtitle: studentName == null
+          ? 'Selecciona una lectura para probar. '
+                'Cada tarjeta incluye una portada visual del texto.'
+          : 'Selecciona una lectura para $studentName. '
+                'Cada tarjeta incluye una portada visual del texto.',
       icon: Icons.menu_book_rounded,
       backgroundColor: AppTheme.surface,
       child: Wrap(

@@ -8,6 +8,7 @@ import 'package:prosodia/core/theme/app_theme.dart';
 import 'package:prosodia/features/assessment/presentation/eval_state.dart';
 import 'package:prosodia/features/assessment/presentation/widgets/assessment_app_bar.dart';
 import 'package:prosodia/features/assessment/presentation/widgets/control_panel.dart';
+import 'package:prosodia/features/assessment/presentation/widgets/reading_gallery.dart';
 
 /// Modo prueba: se entra sin credenciales y **no se guarda nada**.
 ///
@@ -163,6 +164,70 @@ void main() {
       await tester.pumpWidget(panel(trial: true));
 
       expect(_accion(tester, 'Iniciar evaluación').onPressed, isNull);
+    });
+  });
+
+  // El bug que motivó este grupo: la galería estaba condicionada a
+  // `_selectedStudent != null`, que en modo prueba nunca se cumple. El curso se
+  // seleccionaba, las lecturas se cargaban en memoria y no se mostraba ninguna.
+  // Los tests anteriores cubrían el panel y la barra, nunca el área de trabajo.
+  group('Galería de lecturas', () {
+    testWidgets('se muestra sin alumno cuando hay lecturas del nivel', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: Scaffold(
+            body: ResponsiveScope(
+              builder: (context, r) => ReadingGallery(
+                texts: [reading],
+                studentName: null,
+                fillHeight: false,
+                onSelect: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Lecturas disponibles'), findsOneWidget);
+      expect(find.textContaining('Tito, el perro alegre'), findsWidgets);
+      expect(
+        find.textContaining('Selecciona una lectura para probar'),
+        findsOneWidget,
+        reason: 'Sin alumno, el subtítulo no puede nombrar a nadie.',
+      );
+    });
+
+    testWidgets('con alumno mantiene su nombre en el subtítulo', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: Scaffold(
+            body: ResponsiveScope(
+              builder: (context, r) => ReadingGallery(
+                texts: [reading],
+                studentName: student.nombreCompleto,
+                fillHeight: false,
+                onSelect: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.textContaining('Josefa'), findsOneWidget);
     });
   });
 

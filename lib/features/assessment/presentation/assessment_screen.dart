@@ -838,10 +838,15 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
       );
     }
 
-    if (_selectedStudent != null && _textos.isNotEmpty) {
+    // Lo que habilita elegir lectura no es haber alumno, sino haber terminado
+    // la preparación: en modo prueba esa preparación es solo el curso.
+    final preparacionLista =
+        widget.trial ? _selectedCurso != null : _selectedStudent != null;
+
+    if (preparacionLista && _textos.isNotEmpty) {
       return ReadingGallery(
         texts: _textos,
-        studentName: _selectedStudent!.nombreCompleto,
+        studentName: _selectedStudent?.nombreCompleto,
         fillHeight: fill,
         onSelect: _state == EvalState.idle
             ? (text) {
@@ -857,6 +862,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
       hasCurso: _selectedCurso != null,
       hasStudent: _selectedStudent != null,
       hasReading: _selectedTexto != null,
+      showStudent: !widget.trial,
       fillHeight: fill,
     );
   }
