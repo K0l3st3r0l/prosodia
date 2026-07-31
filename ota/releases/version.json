@@ -1,6 +1,6 @@
 {
-  "version": "1.0.42",
-  "build": 42,
-  "url": "https://ota.laravas.com/prosodia-latest.apk?v=42",
-  "changelog": "Vista vertical más limpia y control de tamaño del texto de lectura"
+  "version": "1.0.43",
+  "build": 43,
+  "url": "https://ota.laravas.com/prosodia-latest.apk?v=43",
+  "changelog": "Corrige contraste de la barra de estado y del botón Listo"
 }
