@@ -1,6 +1,6 @@
 {
-  "version": "1.0.44",
-  "build": 44,
-  "url": "https://ota.laravas.com/prosodia-latest.apk?v=44",
-  "changelog": "Tres lecturas nuevas para 1° básico y portadas renovadas"
+  "version": "1.0.45",
+  "build": 45,
+  "url": "https://ota.laravas.com/prosodia-latest.apk?v=45",
+  "changelog": "Login rediseñado para tablet y pantalla horizontal desde el arranque"
 }
