@@ -56,6 +56,66 @@ const _textos = [
         'Luego empezó a soplar el viento\n'
         'y todas las figuras cambiaron de lugar.',
   ),
+  // Secuencia anual de 1°: van después de los anteriores porque la galería
+  // ordena por id y las tablets ya instaladas los reciben al final.
+  // Inicio / 1.er semestre: oraciones simples aisladas, una por línea.
+  (
+    nivel: '1',
+    titulo: 'La paloma y la pera',
+    texto:
+        'La paloma está en el pino.\n'
+        'La paloma mira el nido.\n\n'
+        'Mi mamá toma jugo.\n'
+        'Mi papá toma jugo.\n'
+        'Mi mamá toma una pera.\n'
+        'La pera es para mí.\n\n'
+        'Lola mira una lupa.\n'
+        'La lupa está en el sofá.\n\n'
+        'Una foca está en la roca.\n'
+        'La foca mira la luna.\n\n'
+        'El loro mira a la lora.\n'
+        'La lora mira el aromo.\n\n'
+        'La lana está en el sofá.\n'
+        'El sofá es cómodo.\n'
+        'La estufa da calor.\n'
+        'Mi mamá mira la estufa.\n\n'
+        'La paloma va al nido.\n'
+        'El loro va al pino.\n'
+        'La foca va a la roca.\n\n'
+        'Mi mamá, mi papá y yo miramos la luna.',
+  ),
+  // Transición entre semestres: las mismas oraciones integradas en párrafos.
+  (
+    nivel: '1',
+    titulo: 'Un día en casa',
+    texto:
+        'La paloma está en el pino y desde ahí mira su nido. '
+        'Cerca del pino, mi mamá y mi papá toman jugo mientras yo como una pera '
+        'que mi mamá dejó para mí. '
+        'Lola está sentada en el sofá y mira una lupa que encontró sobre la lana. '
+        'El sofá es cómodo y la estufa da calor.\n\n'
+        'Afuera, el loro mira a la lora que está cerca del aromo '
+        'y la paloma vuelve a su nido. '
+        'Más lejos, una foca está sobre una roca y mira la luna. '
+        'Cuando comienza a oscurecer, el loro vuela al pino y la foca vuelve a la roca. '
+        'Entonces mi mamá, mi papá y yo salimos al patio y miramos juntos la luna.',
+  ),
+  // 2.° semestre: párrafos con trama y consonantes complejas (Z/C).
+  (
+    nivel: '1',
+    titulo: 'El zapatero',
+    texto:
+        'El zapatero repara los zapatos de mi papá y, sobre la mesa, '
+        'tiene una taza de loza, un azucarero y un pan con cecina. '
+        'Cerca de la ventana tiene un pez que nada junto a la luz. '
+        'Afuera, en su patio, hay un zorzal que come gusanos '
+        'y un erizo que camina lentamente con su duro caparazón. '
+        'Además, tiene una pizarra con el dibujo de un ramo '
+        'que lleva una cinta de color celeste.\n\n'
+        'Hoy, al salir de la escuela, vi un auto que tocó la bocina '
+        'mientras mi papá se ponía el cinturón. '
+        'El auto que nos tocó la bocina era del zapatero.',
+  ),
 
   // 2° básico
   (

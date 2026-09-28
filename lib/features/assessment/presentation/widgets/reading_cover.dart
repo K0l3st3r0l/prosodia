@@ -8,7 +8,8 @@ import '../../../../core/database/app_database.dart';
 /// del arte de respaldo.
 typedef ReadingCoverSpec = ({List<Color> colors, String badge, String scene});
 
-/// Ruta del PNG de portada dentro de `assets/reading_covers/`.
+/// Ruta de la portada dentro de `assets/reading_covers/`. Las genera
+/// `scripts/generate_codex_covers.py`.
 String readingCoverImagePath(ReadingText text) {
   var slug = text.titulo.toLowerCase();
   slug = slug
@@ -20,7 +21,7 @@ String readingCoverImagePath(ReadingText text) {
       .replaceAll('ü', 'u')
       .replaceAll('ñ', 'n');
   slug = slug.replaceAll(' ', '_').replaceAll(RegExp(r'[^a-z0-9_]'), '');
-  return 'assets/reading_covers/${text.nivel}_$slug.png';
+  return 'assets/reading_covers/${text.nivel}_$slug.jpg';
 }
 
 ReadingCoverSpec readingCoverSpec(ReadingText text) {
@@ -181,7 +182,7 @@ class ReadingCover extends StatelessWidget {
   }
 }
 
-/// Arte de respaldo cuando falta el PNG de la portada.
+/// Arte de respaldo cuando falta la imagen de la portada.
 ///
 /// Se dibuja sobre un lienzo de diseño fijo de [_canvasWidth]×[_canvasHeight] y
 /// se escala con `FittedBox`. Las constantes de cada escena son coordenadas de
