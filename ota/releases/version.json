@@ -1,6 +1,6 @@
 {
-  "version": "1.0.45",
-  "build": 45,
-  "url": "https://ota.laravas.com/prosodia-latest.apk?v=45",
-  "changelog": "Login rediseñado para tablet y pantalla horizontal desde el arranque"
+  "version": "1.0.46",
+  "build": 46,
+  "url": "https://ota.laravas.com/prosodia-latest.apk?v=46",
+  "changelog": "Cuadro Analizando centrado y resultados alineados"
 }
