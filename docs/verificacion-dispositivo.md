@@ -48,7 +48,10 @@ Regla nueva: la app sigue la clase de dispositivo, **pero la superficie de
 lectura va siempre en landscape**.
 
 ### En tablet
-- [ ] **2.1** Todo landscape, sin cambios respecto de antes. Girarla no rota nada.
+- [ ] **2.1** Todo landscape **desde el arranque en frío** (cerrar la app del todo y abrirla con la tablet vertical): la pantalla de modo y el login ya salen en horizontal. Antes solo se trababa después de salir de una evaluación.
+- [ ] **2.1b** El login muestra el panel morado a la izquierda y el formulario a la derecha, con el botón **Ingresar** a la vista sin desplazar.
+- [ ] **2.1c** Al tocar un campo, el teclado no tapa el botón **Ingresar** y el panel morado no salta.
+- [ ] **2.1d** Sin Wi-Fi, un intento de ingreso dice "No hay conexión con el servidor", no "Correo o contraseña incorrectos".
 
 ### En teléfono (si tienes uno a mano)
 - [ ] **2.2** Login, selección de curso y de alumno **sí rotan** al girar el teléfono.

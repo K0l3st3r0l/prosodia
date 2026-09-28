@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -17,6 +18,8 @@ import 'package:prosodia/features/assessment/presentation/widgets/reading_galler
 import 'package:prosodia/features/assessment/presentation/widgets/reading_view.dart';
 import 'package:prosodia/features/assessment/presentation/widgets/review_panel.dart';
 import 'package:prosodia/features/assessment/presentation/widgets/surfaces.dart';
+import 'package:prosodia/features/auth/presentation/login_screen.dart';
+import 'package:prosodia/features/landing/presentation/landing_screen.dart';
 
 /// Verificación de desbordamiento por viewport.
 ///
@@ -250,6 +253,62 @@ void main() {
   }
 
   // ── Superficies ───────────────────────────────────────────────────────────
+
+  group('Pantalla de modo', () {
+    matrixTest(
+      'LandingScreen',
+      (context, r) => const LandingScreen(startLoggedIn: false),
+      wrapInScaffold: false,
+    );
+  });
+
+  group('Login', () {
+    matrixTest(
+      'LoginScreen',
+      (context, r) => const ProviderScope(child: LoginScreen()),
+      wrapInScaffold: false,
+    );
+
+    // El defecto que motivó el rediseño: el panel de marca apilado arriba
+    // empujaba el formulario entero bajo el pliegue, en teléfono y también en
+    // una tablet de 960 dp en landscape (el corte anterior estaba en 980).
+    for (final size in const [
+      Size(960, 600),
+      Size(1280, 800),
+      Size(600, 960),
+      Size(800, 1280),
+      Size(411, 891),
+      Size(891, 411),
+    ]) {
+      testWidgets(
+        'el botón de ingresar se ve sin desplazar — '
+        '${size.width.toInt()}x${size.height.toInt()}',
+        (tester) async {
+          tester.view.devicePixelRatio = 1.0;
+          tester.view.physicalSize = size;
+          addTearDown(tester.view.reset);
+          await tester.pumpWidget(
+            ProviderScope(
+              child: MaterialApp(
+                theme: AppTheme.light,
+                home: const LoginScreen(),
+              ),
+            ),
+          );
+          await tester.pump();
+
+          final button = tester.getRect(find.byType(FilledButton));
+          expect(
+            button.bottom,
+            lessThanOrEqualTo(size.height),
+            reason: 'el botón quedó bajo el pliegue',
+          );
+          expect(tester.getRect(find.byType(TextField).first).top,
+              greaterThanOrEqualTo(0));
+        },
+      );
+    }
+  });
 
   group('Barra superior', () {
     matrixTest(
@@ -751,6 +810,33 @@ void main() {
         const Size(360, 640),
         (context, r) => SingleChildScrollView(child: manualReviewForm(r)),
       );
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      handle.dispose();
+    });
+
+    testWidgets('login — tablet landscape, con volver', (tester) async {
+      final handle = tester.ensureSemantics();
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(960, 600);
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.light,
+            home: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                ),
+                child: const Text('abrir'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('abrir'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Volver'), findsOneWidget);
       await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
       handle.dispose();
     });

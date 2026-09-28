@@ -61,7 +61,10 @@ class LandingScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Center(
-                        child: AppLogo(size: r.isShortViewport ? 64 : 88),
+                        child: AppLogo(
+                          size: r.isShortViewport ? 64 : 88,
+                          heroTag: 'prosodia-logo',
+                        ),
                       ),
                       SizedBox(height: r.spacing.lg),
                       Text(

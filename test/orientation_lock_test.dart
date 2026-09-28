@@ -57,6 +57,26 @@ void main() {
       expect(calls.single, isEmpty);
     });
 
+    test('sin tamaño todavía, espera la primera métrica real', () async {
+      // Así llega `main()` en Android: la vista aún no tiene layout. Decidir
+      // con tamaño cero clasifica la tablet como teléfono y la deja rotar.
+      useDevice(Size.zero);
+      await applyDefaultOrientations();
+      expect(calls, isEmpty);
+
+      final view =
+          TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+      view.physicalSize = const Size(1280, 800);
+      await Future<void>.delayed(Duration.zero);
+      expect(calls.single, landscapeOnly);
+
+      // Una sola vez: rotar después no debe re-aplicar la regla por defecto,
+      // o pisaría el lock de la superficie de lectura.
+      view.physicalSize = const Size(800, 1280);
+      await Future<void>.delayed(Duration.zero);
+      expect(calls, hasLength(1));
+    });
+
     test('la clase se resuelve por shortestSide, no por orientación actual',
         () async {
       // Misma tablet, sostenida en portrait: sigue siendo clase tablet.

@@ -41,10 +41,35 @@ AppBreakpoint platformBreakpoint() {
 }
 
 /// Orientaciones por defecto: landscape en tablets, libre en teléfonos.
-Future<void> applyDefaultOrientations() =>
-    SystemChrome.setPreferredOrientations(
-      platformBreakpoint().isTabletClass ? _landscapeOnly : const [],
-    );
+///
+/// En Android `main()` corre antes del primer layout de la vista, así que en
+/// ese momento `physicalSize` suele ser cero. Resolver con tamaño cero da
+/// `phone` y dejaba la tablet rotando libre hasta salir por primera vez de la
+/// evaluación: el login aparecía en portrait. Si todavía no hay tamaño, se
+/// espera la primera métrica real antes de decidir.
+Future<void> applyDefaultOrientations() {
+  final view = WidgetsBinding.instance.platformDispatcher.views.first;
+  if (view.physicalSize.isEmpty) {
+    WidgetsBinding.instance.addObserver(_DeferredDefaultOrientations());
+    return Future.value();
+  }
+  return SystemChrome.setPreferredOrientations(
+    platformBreakpoint().isTabletClass ? _landscapeOnly : const [],
+  );
+}
+
+/// Aplica la orientación por defecto una sola vez, apenas la vista tiene
+/// tamaño. Una sola vez porque, después, re-aplicarla en cada cambio de
+/// métricas pisaría el lock de la superficie de lectura al rotar.
+class _DeferredDefaultOrientations with WidgetsBindingObserver {
+  @override
+  void didChangeMetrics() {
+    final view = WidgetsBinding.instance.platformDispatcher.views.first;
+    if (view.physicalSize.isEmpty) return;
+    WidgetsBinding.instance.removeObserver(this);
+    applyDefaultOrientations();
+  }
+}
 
 /// Landscape forzado mientras el texto de lectura está en pantalla.
 Future<void> lockLandscapeForReading() =>
