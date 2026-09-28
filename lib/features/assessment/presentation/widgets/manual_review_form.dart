@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/responsive/responsive.dart';
@@ -197,27 +199,132 @@ class ChoiceChipSelector extends StatelessWidget {
     required this.options,
     required this.selected,
     required this.onSelected,
+    this.sizingOptions,
   });
 
   final List<String> options;
   final String selected;
   final ValueChanged<String> onSelected;
 
+  /// Opciones con que se decide el número de columnas; por defecto, las
+  /// propias. Calidad y prosodia se miden juntas: son el mismo control uno
+  /// debajo del otro, y con medidas separadas una quedaba en una columna y la
+  /// otra en dos.
+  final List<String>? sizingOptions;
+
+  /// Lo que el chip suma alrededor de la etiqueta: `padding` del `chipTheme`
+  /// (14 × 2), `labelPadding` de Material (8 × 2), el check que aparece al
+  /// seleccionar y el borde.
+  static const double _chipChrome = 72;
+
+  /// Grilla de columnas de igual ancho y no un `Wrap` libre: cada chip medía
+  /// lo que su texto, y en el panel de una tablet de 960 dp quedaban en
+  /// escalera — «Silábica» sola, «Palabra a palabra» sola, los otros dos
+  /// juntos. Las columnas salen del texto más largo medido con la escala del
+  /// sistema, no de un ancho fijo.
   @override
   Widget build(BuildContext context) {
     final gap = context.responsive.spacing.sm;
+    final labelStyle =
+        ChipTheme.of(context).labelStyle ??
+        Theme.of(context).textTheme.labelMedium;
+    final scaler = MediaQuery.textScalerOf(context);
 
-    return Wrap(
-      spacing: gap,
-      runSpacing: gap,
-      children: [
-        for (final option in options)
-          ChoiceChip(
-            label: Text(formatChoiceLabel(option)),
-            selected: selected == option,
-            onSelected: (_) => onSelected(option),
+    var widest = 0.0;
+    for (final option in sizingOptions ?? options) {
+      final painter = TextPainter(
+        text: TextSpan(text: formatChoiceLabel(option), style: labelStyle),
+        textDirection: TextDirection.ltr,
+        textScaler: scaler,
+        maxLines: 1,
+      )..layout();
+      widest = math.max(widest, painter.width);
+      painter.dispose();
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final fits =
+            ((constraints.maxWidth + gap) / (widest + _chipChrome + gap))
+                .floor();
+        final columns = fits.clamp(1, 2);
+        final width = (constraints.maxWidth - gap * (columns - 1)) / columns;
+
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: [
+            for (final option in options)
+              SizedBox(
+                width: width,
+                child: ChoiceChip(
+                  label: SizedBox(
+                    width: double.infinity,
+                    child: Text(
+                      formatChoiceLabel(option),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  selected: selected == option,
+                  onSelected: (_) => onSelected(option),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// De dónde salen los valores del formulario: la IA o el docente.
+class _ReviewSourceNote extends StatelessWidget {
+  const _ReviewSourceNote({required this.whisperAnalyzed});
+
+  final bool whisperAnalyzed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final r = context.responsive;
+    final foreground = whisperAnalyzed ? AppTheme.primary : AppTheme.warningInk;
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: r.spacing.md,
+        vertical: r.spacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: whisperAnalyzed ? AppTheme.surfaceAlt : AppTheme.warningSurface,
+        borderRadius: BorderRadius.circular(r.radii.control),
+        border: Border.all(
+          color: whisperAnalyzed
+              ? theme.colorScheme.outline
+              : AppTheme.warningBorder,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            whisperAnalyzed
+                ? Icons.auto_awesome_rounded
+                : Icons.edit_note_rounded,
+            size: r.type.iconSm,
+            color: foreground,
           ),
-      ],
+          SizedBox(width: r.spacing.sm),
+          Expanded(
+            child: Text(
+              whisperAnalyzed
+                  ? 'Valores detectados por la IA — puedes corregirlos'
+                  : 'Sin análisis IA — ingresa los valores manualmente',
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: foreground,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -290,26 +397,10 @@ class ManualReviewForm extends StatelessWidget {
         children: [
           audioPlayer,
           SizedBox(height: r.spacing.md),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: InfoPill(
-              icon: whisperAnalyzed
-                  ? Icons.auto_awesome_rounded
-                  : Icons.edit_note_rounded,
-              label: whisperAnalyzed
-                  ? 'Valores detectados por la IA — puedes corregirlos'
-                  : 'Sin análisis IA — ingresa los valores manualmente',
-              background: whisperAnalyzed
-                  ? AppTheme.surfaceAlt
-                  : AppTheme.warningSurface,
-              foreground: whisperAnalyzed
-                  ? AppTheme.primary
-                  : AppTheme.warningInk,
-              border: whisperAnalyzed
-                  ? theme.colorScheme.outline
-                  : AppTheme.warningBorder,
-            ),
-          ),
+          // Nota a ancho completo y no `InfoPill`: la pastilla es de una línea
+          // con elipsis, y en el panel de una tablet de 960 dp la frase quedaba
+          // en «Sin análisis IA — ingresa los valo…».
+          _ReviewSourceNote(whisperAnalyzed: whisperAnalyzed),
           SizedBox(height: r.spacing.md),
           Wrap(
             spacing: r.spacing.sm,
@@ -381,6 +472,7 @@ class ManualReviewForm extends StatelessWidget {
           SizedBox(height: r.spacing.sm),
           ChoiceChipSelector(
             options: calidadOptions,
+            sizingOptions: const [...calidadOptions, ...prosodiaOptions],
             selected: calidad,
             onSelected: onCalidadChanged,
           ),
@@ -389,6 +481,7 @@ class ManualReviewForm extends StatelessWidget {
           SizedBox(height: r.spacing.sm),
           ChoiceChipSelector(
             options: prosodiaOptions,
+            sizingOptions: const [...calidadOptions, ...prosodiaOptions],
             selected: prosodia,
             onSelected: onProsodiaChanged,
           ),

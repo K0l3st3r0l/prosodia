@@ -281,13 +281,22 @@ class _HeaderAction extends StatelessWidget {
 class _ActionSpinner extends StatelessWidget {
   const _ActionSpinner();
 
+  /// Ocupa el lugar exacto de un [_HeaderAction] —mismo círculo, mismo margen
+  /// derecho—: sin ellos, mientras sincronizaba, la fila de botones perdía un
+  /// círculo y el siguiente quedaba pegado.
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
-      width: kMinTapTarget,
-      height: kMinTapTarget,
-      child: Center(
-        child: SizedBox(
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: Container(
+        width: kMinTapTarget,
+        height: kMinTapTarget,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.08),
+          shape: BoxShape.circle,
+        ),
+        child: const SizedBox(
           width: 20,
           height: 20,
           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),

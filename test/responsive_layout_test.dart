@@ -665,6 +665,165 @@ void main() {
         ),
       ),
     );
+
+    // Dentro de un `SectionCard` el círculo y los textos quedaban en una
+    // columna angosta pegada a la izquierda de la tarjeta, y la tarjeta pegada
+    // arriba del panel.
+    for (final size in const [Size(960, 600), Size(1280, 800), Size(891, 411)]) {
+      testWidgets(
+        'círculo y textos centrados en el panel — '
+        '${size.width.toInt()}x${size.height.toInt()}',
+        (tester) async {
+          tester.view.devicePixelRatio = 1.0;
+          tester.view.physicalSize = size;
+          addTearDown(tester.view.reset);
+          await tester.pumpWidget(
+            MaterialApp(
+              theme: AppTheme.light,
+              home: Scaffold(
+                body: ResponsiveScope(
+                  builder: (context, r) => AssessmentLayout(
+                    workAreaFirst: true,
+                    controlPanel: const SizedBox.shrink(),
+                    workArea: AnalyzingPanel(
+                      elapsed: const Duration(seconds: 42),
+                      fillHeight: r.paneStrategy.isDual,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+          await tester.pump();
+
+          final pane = tester.getRect(
+            find.ancestor(
+              of: find.byType(AnalyzingPanel),
+              matching: find.byType(SurfacePanel),
+            ),
+          );
+          final spinner = tester.getRect(
+            find.byType(CircularProgressIndicator),
+          );
+          expect(spinner.center.dx, closeTo(pane.center.dx, 0.5));
+          for (final text in [
+            'Analizando lectura',
+            'Transcribiendo audio de 00:42',
+          ]) {
+            expect(
+              tester.getRect(find.text(text)).center.dx,
+              closeTo(pane.center.dx, 0.5),
+              reason: '«$text» no quedó centrado',
+            );
+          }
+
+          final block = tester.getRect(
+            find.ancestor(
+              of: find.byType(CircularProgressIndicator),
+              matching: find.byType(Column),
+            ).first,
+          );
+          expect(block.center.dy, closeTo(pane.center.dy, 1));
+        },
+      );
+    }
+  });
+
+  group('Alineación', () {
+    Future<void> pumpIn(WidgetTester tester, double width, Widget child) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(960, 2400);
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: Scaffold(
+            body: ResponsiveScope(
+              builder: (context, r) => SingleChildScrollView(
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: SizedBox(width: width, child: child),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+    }
+
+    testWidgets('los valores del resultado forman una columna', (
+      tester,
+    ) async {
+      await pumpIn(
+        tester,
+        420,
+        const ResultsCard(
+          pcpm: 94.3,
+          velocidad: 'Medio Baja',
+          nivelLogro: 'Muy Bajo lo Esperado',
+          calidad: 'palabra_a_palabra',
+          prosodia: 'básica',
+        ),
+      );
+      final rights = [
+        for (final value in [
+          '94.3',
+          'Medio Baja',
+          'Muy Bajo lo Esperado',
+          'Palabra a palabra',
+          'Básica',
+        ])
+          tester.getRect(find.text(value)).right,
+      ];
+      for (final right in rights) {
+        expect(right, closeTo(rights.first, 0.5));
+      }
+      // Valores legibles, no la clave interna.
+      expect(find.text('palabra_a_palabra'), findsNothing);
+    });
+
+    for (final width in const [248.0, 373.0, 323.0]) {
+      testWidgets(
+        'chips de calidad y prosodia en grilla pareja — panel de '
+        '${width.toInt()} dp',
+        (tester) async {
+          await pumpIn(
+            tester,
+            width,
+            Builder(builder: (context) => manualReviewForm(context.responsive)),
+          );
+          final chips = find.byType(ChoiceChip);
+          expect(chips, findsNWidgets(8));
+          final rects = [
+            for (final element in chips.evaluate())
+              tester.getRect(find.byWidget(element.widget)),
+          ];
+          for (final rect in rects) {
+            expect(rect.width, closeTo(rects.first.width, 0.5));
+          }
+          // Los chips de cada columna parten en el mismo x.
+          final lefts = {for (final rect in rects) rect.left.round()};
+          expect(lefts.length, lessThanOrEqualTo(2));
+        },
+      );
+    }
+
+    testWidgets('los títulos de las tarjetas del panel parten en el mismo x', (
+      tester,
+    ) async {
+      await pumpIn(
+        tester,
+        320,
+        Builder(
+          builder: (context) =>
+              controlPanel(context.responsive, state: EvalState.idle),
+        ),
+      );
+      final flujo = tester.getRect(find.text('Flujo de evaluación'));
+      final preparacion = tester.getRect(find.text('Preparación'));
+      expect(flujo.left, closeTo(preparacion.left, 0.5));
+    });
   });
 
   group('Revisión', () {
@@ -747,20 +906,23 @@ void main() {
           width: 280,
           child: AlertDialog(
             title: const Text('Evaluación guardada'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  ResultRow(label: 'PCPM', value: '94.3'),
-                  ResultRow(label: 'Velocidad', value: 'Medio Baja'),
-                  ResultRow(
-                    label: 'Nivel de logro',
-                    value: 'Muy Bajo lo Esperado',
-                  ),
-                  ResultRow(label: 'Calidad', value: 'Palabra A Palabra'),
-                  ResultRow(label: 'Prosodia', value: 'Inadecuada'),
-                ],
+            content: SizedBox(
+              width: 380,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: const [
+                    ResultRow(label: 'PCPM', value: '94.3'),
+                    ResultRow(label: 'Velocidad', value: 'Medio Baja'),
+                    ResultRow(
+                      label: 'Nivel de logro',
+                      value: 'Muy Bajo lo Esperado',
+                    ),
+                    ResultRow(label: 'Calidad', value: 'Palabra a palabra'),
+                    ResultRow(label: 'Prosodia', value: 'Inadecuada'),
+                  ],
+                ),
               ),
             ),
             actions: [

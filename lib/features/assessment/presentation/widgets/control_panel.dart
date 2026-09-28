@@ -138,74 +138,22 @@ class _WorkflowHeader extends StatelessWidget {
   final bool hasStudent;
   final bool hasReading;
 
+  /// Mismo `SectionCard` que las tarjetas de abajo. Tenía su propio encabezado,
+  /// con el ícono en un círculo de 40 dp que corría título y subtítulo a la
+  /// derecha y esquinas de otro radio: era la única tarjeta del panel cuyos
+  /// textos no partían en la misma línea que los de las demás.
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final r = context.responsive;
-    final diameter = r.isShortViewport ? 32.0 : 40.0;
-
-    return Container(
-      padding: EdgeInsets.all(r.spacing.lg),
-      decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(r.radii.surface),
-        border: Border.all(color: theme.colorScheme.outline),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: diameter,
-                height: diameter,
-                decoration: const BoxDecoration(
-                  color: AppTheme.surfaceStrong,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.track_changes_rounded,
-                  size: r.type.iconMd,
-                  color: AppTheme.primary,
-                ),
-              ),
-              SizedBox(width: r.spacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Flujo de evaluación',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: AppTheme.primary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    if (!r.isShortViewport) ...[
-                      SizedBox(height: r.spacing.xs),
-                      Text(
-                        'Mantén el orden recomendado para una sesión rápida y '
-                        'consistente.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: AppTheme.muted,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: r.spacing.lg),
-          WorkflowChips(
-            hasCurso: hasCurso,
-            hasStudent: hasStudent,
-            hasReading: hasReading,
-            showStudent: !trial,
-          ),
-        ],
+    return SectionCard(
+      title: 'Flujo de evaluación',
+      subtitle: 'Mantén el orden recomendado para una sesión rápida y '
+          'consistente.',
+      icon: Icons.track_changes_rounded,
+      child: WorkflowChips(
+        hasCurso: hasCurso,
+        hasStudent: hasStudent,
+        hasReading: hasReading,
+        showStudent: !trial,
       ),
     );
   }

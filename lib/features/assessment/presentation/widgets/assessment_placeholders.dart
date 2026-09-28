@@ -6,7 +6,12 @@ import '../../../../core/widgets/app_logo.dart';
 import 'formatting.dart';
 import 'surfaces.dart';
 
-/// Envuelve en scroll solo cuando el widget es dueño de su altura.
+/// Envuelve en scroll solo cuando el widget es dueño de su altura, y en ese
+/// caso lo centra en el alto del panel.
+///
+/// Un `Center` directo dentro del scroll no centra en vertical: el scroll le da
+/// alto ilimitado y el contenido quedaba pegado arriba, con medio panel vacío
+/// debajo. La altura mínima del viewport es lo que le da espacio para centrar.
 class _MaybeScrollable extends StatelessWidget {
   const _MaybeScrollable({required this.enabled, required this.child});
 
@@ -14,8 +19,18 @@ class _MaybeScrollable extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) =>
-      enabled ? SingleChildScrollView(child: child) : child;
+  Widget build(BuildContext context) {
+    if (!enabled) return child;
+
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: Center(child: child),
+        ),
+      ),
+    );
+  }
 }
 
 /// Estado inicial: todavía no hay curso, estudiante o lectura elegidos.
@@ -101,6 +116,12 @@ class AssessmentEmptyState extends StatelessWidget {
 }
 
 /// Whisper está transcribiendo la grabación.
+///
+/// Composición centrada de punta a punta, como [AssessmentEmptyState]. Antes
+/// iba dentro de un `SectionCard`, que alinea a la izquierda: el círculo y los
+/// textos quedaban en una columna angosta —del ancho de la línea más larga—
+/// pegada al borde izquierdo de la tarjeta, bajo un encabezado también a la
+/// izquierda, y nada coincidía con el centro.
 class AnalyzingPanel extends StatelessWidget {
   const AnalyzingPanel({
     super.key,
@@ -122,42 +143,55 @@ class AnalyzingPanel extends StatelessWidget {
       child: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: r.proseMaxWidth),
-          child: SectionCard(
-            title: 'Analizando lectura',
-            subtitle:
-                'Estamos procesando la grabación y estimando palabras leídas, '
-                'errores y transcripción.',
-            icon: Icons.auto_awesome_rounded,
-            backgroundColor: AppTheme.surfaceAlt,
+          child: Container(
+            width: double.infinity,
+            padding: EdgeInsets.symmetric(
+              horizontal: r.spacing.xl,
+              vertical: r.isShortViewport ? r.spacing.lg : r.spacing.xxl,
+            ),
+            decoration: BoxDecoration(
+              color: AppTheme.surfaceAlt,
+              borderRadius: BorderRadius.circular(r.radii.panel),
+              border: Border.all(color: theme.colorScheme.outline),
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
                   width: diameter,
                   height: diameter,
+                  padding: EdgeInsets.all(diameter * 0.26),
                   decoration: const BoxDecoration(
                     color: AppTheme.surfaceStrong,
                     shape: BoxShape.circle,
                   ),
-                  child: Padding(
-                    padding: EdgeInsets.all(diameter * 0.24),
-                    child: const CircularProgressIndicator(
-                      strokeWidth: 4,
-                      valueColor: AlwaysStoppedAnimation(AppTheme.primary),
-                    ),
+                  child: const CircularProgressIndicator(
+                    strokeWidth: 4,
+                    valueColor: AlwaysStoppedAnimation(AppTheme.primary),
                   ),
                 ),
                 SizedBox(height: r.spacing.lg),
                 Text(
-                  'Transcribiendo audio de ${formatElapsed(elapsed)}',
+                  'Analizando lectura',
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.titleMedium?.copyWith(
+                  style: theme.textTheme.titleLarge?.copyWith(
                     color: AppTheme.primary,
                   ),
                 ),
-                SizedBox(height: r.spacing.sm),
+                SizedBox(height: r.spacing.xs),
                 Text(
-                  'Puedes continuar en cuanto termine el análisis.',
+                  'Transcribiendo audio de ${formatElapsed(elapsed)}',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: AppTheme.ink,
+                  ),
+                ),
+                SizedBox(height: r.spacing.md),
+                Text(
+                  r.isShortViewport
+                      ? 'Puedes continuar en cuanto termine el análisis.'
+                      : 'Estamos estimando palabras leídas y errores. Puedes '
+                            'continuar en cuanto termine el análisis.',
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: AppTheme.muted,

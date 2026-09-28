@@ -4,13 +4,19 @@ import 'package:flutter/material.dart';
 import '../../../../core/responsive/responsive.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/stats_repository.dart';
+import 'formatting.dart';
 
-/// Fila etiqueta/valor de los resultados.
+/// Fila etiqueta/valor de los resultados: etiqueta a la izquierda, valor
+/// alineado al borde derecho, para que los cinco valores formen una columna.
 ///
-/// Ambos lados son flexibles. `'Nivel de logro: Muy Bajo lo Esperado'` son ~35
-/// caracteres, y con el texto del sistema escalado la etiqueta sola puede
-/// agotar el ancho de un diálogo sobre 360 dp: dejarla rígida hace que el
-/// `Expanded` del valor reciba cero y la fila desborde.
+/// Antes era `Etiqueta: valor` en línea y cada valor empezaba donde terminaba
+/// su etiqueta; al partirse en varias líneas (`Muy Bajo lo Esperado`) quedaban
+/// escalonados.
+///
+/// Ambos lados siguen siendo flexibles: con el texto del sistema escalado una
+/// etiqueta rígida puede agotar el ancho de un diálogo angosto y dejar al valor
+/// en cero. El valor toma la mitad derecha y, si no cabe, se parte en líneas
+/// alineadas a la derecha en vez de salirse de la columna.
 class ResultRow extends StatelessWidget {
   const ResultRow({super.key, required this.label, required this.value});
 
@@ -19,18 +25,35 @@ class ResultRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
+        // Con la etiqueta más corta que su mitad, `start` dejaba el sobrante
+        // al final de la fila y el valor no llegaba al borde derecho.
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Flexible(
             child: Text(
-              '$label: ',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              label,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: AppTheme.muted,
+              ),
             ),
           ),
-          Flexible(child: Text(value)),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: AppTheme.ink,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -122,14 +145,14 @@ class ResultsCard extends StatelessWidget {
       cardKey: cardKey,
       title: 'Resultado actual',
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
           ResultRow(label: 'PCPM', value: pcpm.toStringAsFixed(1)),
           ResultRow(label: 'Velocidad', value: velocidad),
           ResultRow(label: 'Nivel de logro', value: nivelLogro),
-          ResultRow(label: 'Calidad', value: calidad),
-          ResultRow(label: 'Prosodia', value: prosodia),
+          ResultRow(label: 'Calidad', value: formatChoiceLabel(calidad)),
+          ResultRow(label: 'Prosodia', value: formatChoiceLabel(prosodia)),
         ],
       ),
     );

@@ -28,6 +28,7 @@ import 'widgets/assessment_layout.dart';
 import 'widgets/assessment_placeholders.dart';
 import 'widgets/context_charts.dart';
 import 'widgets/control_panel.dart';
+import 'widgets/formatting.dart';
 import 'widgets/manual_review_form.dart';
 import 'widgets/reading_mode_bar.dart';
 import 'widgets/reading_gallery.dart';
@@ -565,17 +566,27 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
         // `AlertDialog` no hace scroll de su contenido: con el texto del
         // sistema escalado, cinco filas de resultado no caben en la altura
         // máxima del diálogo en un teléfono.
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ResultRow(label: 'PCPM', value: pcpm.toStringAsFixed(1)),
-              ResultRow(label: 'Velocidad', value: velocidad),
-              ResultRow(label: 'Nivel de logro', value: nivelLogro),
-              ResultRow(label: 'Calidad', value: _calidad),
-              ResultRow(label: 'Prosodia', value: _prosodia),
-            ],
+        //
+        // Ancho explícito: sin él, `AlertDialog` toma el ancho intrínseco del
+        // contenido y el diálogo quedaba en ~300 dp en plena tablet. En un
+        // teléfono angosto el propio diálogo lo recorta a lo que cabe.
+        content: SizedBox(
+          width: 380,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ResultRow(label: 'PCPM', value: pcpm.toStringAsFixed(1)),
+                ResultRow(label: 'Velocidad', value: velocidad),
+                ResultRow(label: 'Nivel de logro', value: nivelLogro),
+                ResultRow(label: 'Calidad', value: formatChoiceLabel(_calidad)),
+                ResultRow(
+                  label: 'Prosodia',
+                  value: formatChoiceLabel(_prosodia),
+                ),
+              ],
+            ),
           ),
         ),
         actions: [

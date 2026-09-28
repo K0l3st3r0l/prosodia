@@ -87,6 +87,8 @@ Una evaluación de punta a punta, con un alumno real o de prueba.
 - [ ] **4.6** El resultado muestra PCPM, velocidad, calidad y prosodia.
 - [ ] **4.7** Las palabras incorrectas/omitidas aparecen resaltadas en el texto original.
 - [ ] **4.8** El diálogo de resultado se puede scrollear completo, sin cortarse.
+- [ ] **4.9** Mientras analiza, el círculo de carga y los textos del cuadro "Analizando lectura" quedan centrados en el panel.
+- [ ] **4.10** El diálogo "Evaluación guardada" es ancho y los cinco valores quedan en una columna a la derecha, escritos como texto normal ("Palabra a palabra", no "palabra_a_palabra").
 
 ---
 
