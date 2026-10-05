@@ -35,6 +35,7 @@ import 'widgets/reading_gallery.dart';
 import 'widgets/reading_view.dart';
 import 'widgets/review_panel.dart';
 import 'widgets/sync_status_banner.dart';
+import 'pending_evaluations_screen.dart';
 
 export 'eval_state.dart';
 
@@ -80,6 +81,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
     const SyncStatus(),
   );
   int _sendsInFlight = 0;
+  bool _saving = false;
   EvalState _state = EvalState.idle;
   int _titleTaps = 0;
 
@@ -243,6 +245,34 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
         : result;
   }
 
+  /// Recalcula cuántas faltan sin intentar enviar: al volver de la lista de
+  /// pendientes, donde pudieron haberse enviado desde ahí.
+  Future<void> _refreshPending() async {
+    final n = await AssessmentRepository(
+      ref.read(dbProvider),
+      ApiClient(),
+    ).pendingCount();
+    if (!mounted) return;
+    final current = _sendStatus.value;
+    _sendStatus.value = n == 0
+        ? SyncStatus(sending: current.sending)
+        : SyncStatus(
+            pending: n,
+            sending: current.sending,
+            failure: current.failure,
+            serverMessage: current.serverMessage,
+          );
+  }
+
+  Future<void> _showPending() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PendingEvaluationsScreen(db: ref.read(dbProvider)),
+      ),
+    );
+    await _refreshPending();
+  }
+
   /// Vuelve al login sin pasar por "Cerrar sesión": el token ya no existe y
   /// las evaluaciones pendientes siguen en la base local, así que al entrar de
   /// nuevo se envían solas.
@@ -265,6 +295,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
           sessionExpired: ApiClient.sessionExpired.value,
           onRetry: idle ? _sendPending : null,
           onLogin: idle ? _relogin : null,
+          onShowPending: idle ? _showPending : null,
         );
       },
     );
@@ -395,11 +426,22 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
   }
 
   Future<void> _logout() async {
+    final pending = await AssessmentRepository(
+      ref.read(dbProvider),
+      ApiClient(),
+    ).pendingCount();
+    if (!mounted) return;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Cerrar sesión'),
-        content: const Text('¿Seguro que quieres salir?'),
+        content: Text(
+          pending == 0
+              ? '¿Seguro que quieres salir?'
+              : 'Hay ${pending == 1 ? '1 evaluación' : '$pending evaluaciones'} '
+                    'sin enviar. Quedan guardadas en esta tablet y se envían '
+                    'cuando se vuelva a iniciar sesión. ¿Salir igual?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -603,23 +645,52 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
       return;
     }
 
-    final packageInfo = await PackageInfo.fromPlatform();
-    final appBuild = int.tryParse(packageInfo.buildNumber) ?? kAppBuild;
+    // Un doble toque en "Guardar" creaba dos filas, y las dos llegaban a
+    // anahuac como evaluaciones distintas.
+    if (_saving) return;
+    _saving = true;
+    try {
+      int? appBuild;
+      try {
+        final packageInfo = await PackageInfo.fromPlatform();
+        appBuild = int.tryParse(packageInfo.buildNumber);
+      } catch (_) {}
 
-    final repo = AssessmentRepository(db, ApiClient());
-    await repo.saveLocal(
-      studentId: _selectedStudent!.id,
-      fecha: DateTime.now(),
-      pcpm: pcpm,
-      velocidad: velocidad,
-      nivelLogro: nivelLogro,
-      calidad: _calidad,
-      nivelLogroCalidad: nivelLogro,
-      prosodia: _prosodia,
-      audioPath: _audioPath,
-      appBuild: appBuild,
-      readingCpl: _readingCpl,
-    );
+      // La tablet guarda primero y envía después: lo que pase con la red o con
+      // el servidor no puede costar la lectura del niño.
+      await AssessmentRepository(db, ApiClient()).saveLocal(
+        studentId: _selectedStudent!.id,
+        fecha: DateTime.now(),
+        pcpm: pcpm,
+        velocidad: velocidad,
+        nivelLogro: nivelLogro,
+        calidad: _calidad,
+        nivelLogroCalidad: nivelLogro,
+        prosodia: _prosodia,
+        audioPath: _audioPath,
+        appBuild: appBuild ?? kAppBuild,
+        readingCpl: _readingCpl,
+      );
+    } catch (e) {
+      log.error('No se pudo guardar la evaluación en la tablet', e);
+      if (mounted) {
+        // Se queda en revisión con todo cargado —audio incluido— para volver a
+        // apretar "Guardar" sin repetir la lectura.
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No se pudo guardar en la tablet. Los datos siguen en pantalla: '
+              'intenta guardar de nuevo.',
+            ),
+            backgroundColor: AppTheme.danger,
+            duration: Duration(seconds: 6),
+          ),
+        );
+      }
+      return;
+    } finally {
+      _saving = false;
+    }
 
     // No bloquea la UX: si falla, queda pendiente y el panel lo avisa
     _sendPending();

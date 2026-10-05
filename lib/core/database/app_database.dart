@@ -94,6 +94,26 @@ class AppDatabase extends _$AppDatabase {
   Future<List<AssessmentSession>> getPendingSync() =>
       (select(assessmentSessions)..where((a) => a.synced.equals(false))).get();
 
+  /// Evaluaciones sin enviar con su alumno, la más reciente primero.
+  ///
+  /// `leftOuterJoin` y no `join`: si el alumno dejó de venir en la
+  /// sincronización, la evaluación igual tiene que aparecer.
+  Future<List<(AssessmentSession, Student?)>> getPendingWithStudent() async {
+    final query = select(assessmentSessions).join([
+      leftOuterJoin(
+        students,
+        students.id.equalsExp(assessmentSessions.studentId),
+      ),
+    ])
+      ..where(assessmentSessions.synced.equals(false))
+      ..orderBy([OrderingTerm.desc(assessmentSessions.fecha)]);
+    final rows = await query.get();
+    return [
+      for (final row in rows)
+        (row.readTable(assessmentSessions), row.readTableOrNull(students)),
+    ];
+  }
+
   Future<void> markSynced(int id) =>
       (update(assessmentSessions)..where((a) => a.id.equals(id))).write(
         AssessmentSessionsCompanion(

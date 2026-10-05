@@ -41,10 +41,14 @@ class SyncStatusBanner extends StatelessWidget {
     required this.sessionExpired,
     required this.onRetry,
     required this.onLogin,
+    required this.onShowPending,
   });
 
   final SyncStatus status;
   final bool sessionExpired;
+
+  /// Abre la lista de evaluaciones guardadas en la tablet.
+  final VoidCallback? onShowPending;
 
   /// `null` deshabilita el botón (ej: con una evaluación en curso).
   final VoidCallback? onRetry;
@@ -58,6 +62,7 @@ class SyncStatusBanner extends StatelessWidget {
     final theme = Theme.of(context);
     final r = context.responsive;
     final (title, body, action) = content;
+    final showList = status.pending > 0 && !status.sending;
 
     return Padding(
       padding: EdgeInsets.only(bottom: r.spacing.md),
@@ -112,9 +117,21 @@ class SyncStatusBanner extends StatelessWidget {
                 ),
               ),
             ],
-            if (action != null) ...[
+            if (action != null || showList) ...[
               SizedBox(height: r.spacing.sm),
-              Align(alignment: Alignment.centerLeft, child: action),
+              Wrap(
+                spacing: r.spacing.sm,
+                runSpacing: r.spacing.xs,
+                children: [
+                  if (action != null) action,
+                  if (showList)
+                    TextButton.icon(
+                      onPressed: onShowPending,
+                      icon: const Icon(Icons.list_alt_outlined),
+                      label: const Text('Ver evaluaciones'),
+                    ),
+                ],
+              ),
             ],
           ],
         ),

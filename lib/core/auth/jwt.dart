@@ -14,10 +14,7 @@ DateTime? jwtExpiry(String token) {
     );
     final exp = payload is Map ? payload['exp'] : null;
     if (exp is! num) return null;
-    return DateTime.fromMillisecondsSinceEpoch(
-      exp.toInt() * 1000,
-      isUtc: true,
-    );
+    return DateTime.fromMillisecondsSinceEpoch(exp.toInt() * 1000, isUtc: true);
   } catch (_) {
     return null;
   }
