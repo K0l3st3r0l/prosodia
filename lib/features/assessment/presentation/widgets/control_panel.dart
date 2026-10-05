@@ -28,6 +28,7 @@ class AssessmentControlPanel extends StatelessWidget {
     required this.manualReview,
     required this.scrollController,
     required this.scrollable,
+    this.syncBanner,
   });
 
   /// Modo prueba: sin alumno. El panel muestra solo la selección de curso, y el
@@ -61,6 +62,10 @@ class AssessmentControlPanel extends StatelessWidget {
   /// `true` cuando el panel tiene altura acotada y hace scroll por su cuenta.
   final bool scrollable;
 
+  /// Aviso de evaluaciones sin enviar, construido por la pantalla. Va primero
+  /// porque es lo único del panel que no depende de la evaluación en curso.
+  final Widget? syncBanner;
+
   @override
   Widget build(BuildContext context) {
     final r = context.responsive;
@@ -69,6 +74,7 @@ class AssessmentControlPanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (syncBanner != null) syncBanner!,
         _WorkflowHeader(
           trial: trial,
           hasCurso: selectedCurso != null,

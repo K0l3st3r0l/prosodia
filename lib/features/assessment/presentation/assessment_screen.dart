@@ -34,6 +34,7 @@ import 'widgets/reading_mode_bar.dart';
 import 'widgets/reading_gallery.dart';
 import 'widgets/reading_view.dart';
 import 'widgets/review_panel.dart';
+import 'widgets/sync_status_banner.dart';
 
 export 'eval_state.dart';
 
@@ -72,6 +73,13 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
 
   bool _syncing = false;
   bool _checkingUpdate = false;
+
+  // Envío de evaluaciones a anahuac. Notifier y no estado de la pantalla: el
+  // diálogo de resultado es otra ruta y también tiene que verlo cambiar.
+  final ValueNotifier<SyncStatus> _sendStatus = ValueNotifier(
+    const SyncStatus(),
+  );
+  int _sendsInFlight = 0;
   EvalState _state = EvalState.idle;
   int _titleTaps = 0;
 
@@ -141,6 +149,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
     // dispositivo; si no, un teléfono quedaría trabado en landscape.
     applyDefaultOrientations();
     _timer?.cancel();
+    _sendStatus.dispose();
     _recorder.dispose();
     _audioPlayer.dispose();
     _leftPanelScrollController?.dispose();
@@ -170,8 +179,8 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
     final local = await db.getAllStudents();
     if (mounted) _updateStudentLists(local);
 
-    // Subir evaluaciones pendientes de sesiones anteriores (fire & forget)
-    AssessmentRepository(db, ApiClient()).syncPending().catchError((_) {});
+    // Subir evaluaciones pendientes de sesiones anteriores
+    _sendPending();
 
     setState(() => _syncing = true);
     try {
@@ -183,7 +192,9 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
       if (mounted) _updateStudentLists(updated);
     } catch (e) {
       log.error('Error sincronizando estudiantes', e);
-      if (mounted && _allStudents.isEmpty) {
+      // Con la sesión vencida, el aviso del panel ya explica qué pasa; este
+      // mensaje diría "sin conexión" y mandaría a revisar el Wi-Fi.
+      if (mounted && _allStudents.isEmpty && !ApiClient.sessionExpired.value) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -197,6 +208,66 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
     } finally {
       if (mounted) setState(() => _syncing = false);
     }
+  }
+
+  /// Envía lo pendiente y publica el resultado en [_sendStatus].
+  ///
+  /// No se espera desde la UI: guardar y mostrar el resultado no dependen de
+  /// la red. Lo que cambia es que ahora el desenlace se ve.
+  Future<void> _sendPending() async {
+    if (widget.trial) return;
+    final repo = AssessmentRepository(ref.read(dbProvider), ApiClient());
+
+    _sendsInFlight++;
+    _sendStatus.value = _sendStatus.value.copyWith(sending: true);
+    SyncStatus result;
+    try {
+      final report = await repo.syncPending();
+      result = SyncStatus(
+        pending: await repo.pendingCount(),
+        failure: report.failure,
+        serverMessage: report.serverMessage,
+      );
+    } catch (e) {
+      log.error('Error enviando evaluaciones', e);
+      result = SyncStatus(
+        pending: await repo.pendingCount(),
+        failure: SyncFailure.unreachable,
+      );
+    } finally {
+      _sendsInFlight--;
+    }
+    if (!mounted) return;
+    _sendStatus.value = _sendsInFlight > 0
+        ? result.copyWith(sending: true)
+        : result;
+  }
+
+  /// Vuelve al login sin pasar por "Cerrar sesión": el token ya no existe y
+  /// las evaluaciones pendientes siguen en la base local, así que al entrar de
+  /// nuevo se envían solas.
+  void _relogin() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (_) => false,
+    );
+  }
+
+  Widget _buildSyncBanner() {
+    return ListenableBuilder(
+      listenable: Listenable.merge([_sendStatus, ApiClient.sessionExpired]),
+      builder: (context, _) {
+        // Salir o reintentar a mitad de una evaluación la perdería o competiría
+        // con ella; se habilitan solo entre evaluaciones.
+        final idle = _state == EvalState.idle;
+        return SyncStatusBanner(
+          status: _sendStatus.value,
+          sessionExpired: ApiClient.sessionExpired.value,
+          onRetry: idle ? _sendPending : null,
+          onLogin: idle ? _relogin : null,
+        );
+      },
+    );
   }
 
   void _updateStudentLists(List<Student> students) {
@@ -550,8 +621,8 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
       readingCpl: _readingCpl,
     );
 
-    // Sync asíncrono: no bloquea la UX; si falla, queda pendiente offline
-    repo.syncPending().catchError((_) {});
+    // No bloquea la UX: si falla, queda pendiente y el panel lo avisa
+    _sendPending();
 
     if (!mounted) return;
     _showResult(pcpm, velocidad, nivelLogro);
@@ -584,6 +655,16 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
                 ResultRow(
                   label: 'Prosodia',
                   value: formatChoiceLabel(_prosodia),
+                ),
+                ListenableBuilder(
+                  listenable: Listenable.merge([
+                    _sendStatus,
+                    ApiClient.sessionExpired,
+                  ]),
+                  builder: (context, _) => SyncResultLine(
+                    status: _sendStatus.value,
+                    sessionExpired: ApiClient.sessionExpired.value,
+                  ),
                 ),
               ],
             ),
@@ -792,6 +873,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
       manualReview: _state == EvalState.reviewing ? _buildManualReview() : null,
       scrollController: _leftPanelScrollController,
       scrollable: r.paneStrategy.isDual,
+      syncBanner: widget.trial ? null : _buildSyncBanner(),
     );
   }
 
