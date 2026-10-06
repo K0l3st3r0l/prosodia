@@ -8,12 +8,13 @@ import '../../../core/widgets/app_logo.dart';
 import '../../../core/widgets/app_version_text.dart';
 import '../../assessment/presentation/assessment_screen.dart';
 import '../../auth/presentation/login_screen.dart';
+import '../../trial/presentation/trial_login_screen.dart';
 
 /// Primera pantalla de la app: elegir entre el uso real y el modo prueba.
 ///
-/// Va **antes** del login a propósito. «Iniciar Prueba» no pide credenciales,
-/// así que se le puede mostrar la app a alguien —una apoderada, otro colegio,
-/// un docente nuevo— sin crearle una cuenta ni tocar los datos reales.
+/// Va **antes** del login a propósito. «Iniciar Prueba» no usa las cuentas de
+/// Anahuac: pide un correo + PIN de colegio de prueba, que trae el listado de
+/// alumnos de ese colegio y respalda sus resultados aparte de los reales.
 class LandingScreen extends StatelessWidget {
   const LandingScreen({super.key, required this.startLoggedIn});
 
@@ -36,9 +37,7 @@ class LandingScreen extends StatelessWidget {
 
   void _openTrial(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const AssessmentScreen(trial: true),
-      ),
+      MaterialPageRoute(builder: (_) => const TrialLoginScreen()),
     );
   }
 
@@ -93,7 +92,7 @@ class LandingScreen extends StatelessWidget {
                       SizedBox(height: r.spacing.md),
                       _ModeButton(
                         label: 'Iniciar Prueba',
-                        description: 'Probar la app sin guardar nada',
+                        description: 'Colegios invitados, con correo y PIN',
                         icon: Icons.play_circle_outline_rounded,
                         primary: false,
                         onPressed: () => _openTrial(context),

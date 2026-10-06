@@ -10,11 +10,13 @@ import 'package:prosodia/features/assessment/presentation/widgets/assessment_app
 import 'package:prosodia/features/assessment/presentation/widgets/control_panel.dart';
 import 'package:prosodia/features/assessment/presentation/widgets/reading_gallery.dart';
 
-/// Modo prueba: se entra sin credenciales y **no se guarda nada**.
+/// Modo prueba: se entra con correo + PIN de un colegio de prueba, no con una
+/// cuenta de Anahuac. Si el colegio aún no tiene listado, se evalúa sin alumno
+/// (`studentless`); con listado, el panel es el mismo del flujo normal.
 ///
 /// Lo que se fija acá es que la interfaz no ofrezca nada que en ese modo no
 /// pueda funcionar — un selector de alumno que estaría siempre vacío, o un
-/// botón de sincronizar que solo podría devolver 401.
+/// botón de sincronizar alumnos de Anahuac que solo podría devolver 401.
 void main() {
   setUpAll(() => GoogleFonts.config.allowRuntimeFetching = false);
 
@@ -46,7 +48,7 @@ void main() {
       body: ResponsiveScope(
         builder: (context, r) => SingleChildScrollView(
           child: AssessmentControlPanel(
-            trial: trial,
+            studentless: trial,
             state: state,
             cursos: const ['3° básico', '4° básico'],
             selectedCurso: selectedCurso,
@@ -89,7 +91,7 @@ void main() {
   );
 
   group('Panel de preparación', () {
-    testWidgets('en prueba no ofrece seleccionar alumno', (tester) async {
+    testWidgets('prueba sin listado: no ofrece seleccionar alumno', (tester) async {
       tester.view.physicalSize = const Size(1280, 800);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
@@ -100,8 +102,7 @@ void main() {
         find.text('Estudiante'),
         findsNothing,
         reason:
-            'Sin sesión no hay alumnos sincronizados: el selector estaría '
-            'siempre vacío y el resultado no se guarda contra nadie.',
+            'Sin listado cargado el selector estaría siempre vacío.',
       );
       expect(find.text('Curso'), findsOneWidget);
     });
@@ -117,7 +118,7 @@ void main() {
       expect(find.text('Curso'), findsOneWidget);
     });
 
-    testWidgets('en prueba el flujo no muestra el paso de estudiante', (
+    testWidgets('prueba sin listado: el flujo no muestra el paso de estudiante', (
       tester,
     ) async {
       tester.view.physicalSize = const Size(1280, 800);
@@ -138,7 +139,7 @@ void main() {
   });
 
   group('Botón de grabación', () {
-    testWidgets('en prueba se habilita con curso y lectura, sin alumno', (
+    testWidgets('prueba sin listado: se habilita con curso y lectura', (
       tester,
     ) async {
       tester.view.physicalSize = const Size(1280, 800);
@@ -156,7 +157,7 @@ void main() {
       );
     });
 
-    testWidgets('en prueba sigue deshabilitado sin lectura', (tester) async {
+    testWidgets('prueba sin listado: sigue deshabilitado sin lectura', (tester) async {
       tester.view.physicalSize = const Size(1280, 800);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);

@@ -9,6 +9,8 @@ from fastapi import FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from faster_whisper import WhisperModel
 
+from trial import router as trial_router
+
 API_KEY = os.environ.get("WHISPER_API_KEY", "")
 MODEL_SIZE = os.environ.get("WHISPER_MODEL", "small")
 
@@ -25,6 +27,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="ProsodIA Whisper Service", lifespan=lifespan)
+
+app.include_router(trial_router)
 
 app.add_middleware(
     CORSMiddleware,

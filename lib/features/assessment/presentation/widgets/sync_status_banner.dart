@@ -29,6 +29,33 @@ class SyncStatus {
 
 String _evaluaciones(int n) => n == 1 ? '1 evaluación' : '$n evaluaciones';
 
+/// Adónde va lo guardado, en las palabras que ve el docente.
+@immutable
+class SyncDestination {
+  const SyncDestination({
+    required this.savedTitle,
+    required this.sendingTitle,
+    required this.savedDetail,
+  });
+
+  /// Los colegios de prueba se respaldan en su propio JSON, no en Anahuac.
+  factory SyncDestination.trial(String colegio) => SyncDestination(
+    savedTitle: 'Respaldada',
+    sendingTitle: 'Respaldando…',
+    savedDetail: 'Quedó en el registro de prueba de $colegio.',
+  );
+
+  static const anahuac = SyncDestination(
+    savedTitle: 'Guardada en Anahuac',
+    sendingTitle: 'Enviando a Anahuac…',
+    savedDetail: 'Ya aparece en Velocidad Lectora de UTP.',
+  );
+
+  final String savedTitle;
+  final String sendingTitle;
+  final String savedDetail;
+}
+
 /// Aviso de evaluaciones sin enviar, arriba del panel de control.
 ///
 /// Existe porque el envío corre en segundo plano y antes fallaba en silencio:
@@ -42,6 +69,7 @@ class SyncStatusBanner extends StatelessWidget {
     required this.onRetry,
     required this.onLogin,
     required this.onShowPending,
+    this.canListPending = true,
   });
 
   final SyncStatus status;
@@ -49,6 +77,9 @@ class SyncStatusBanner extends StatelessWidget {
 
   /// Abre la lista de evaluaciones guardadas en la tablet.
   final VoidCallback? onShowPending;
+
+  /// La lista sale de la base local; los resultados de prueba no están ahí.
+  final bool canListPending;
 
   /// `null` deshabilita el botón (ej: con una evaluación en curso).
   final VoidCallback? onRetry;
@@ -62,7 +93,7 @@ class SyncStatusBanner extends StatelessWidget {
     final theme = Theme.of(context);
     final r = context.responsive;
     final (title, body, action) = content;
-    final showList = status.pending > 0 && !status.sending;
+    final showList = canListPending && status.pending > 0 && !status.sending;
 
     return Padding(
       padding: EdgeInsets.only(bottom: r.spacing.md),
@@ -207,15 +238,12 @@ class SyncResultCard extends StatelessWidget {
     super.key,
     required this.status,
     required this.sessionExpired,
-    required this.trial,
+    this.destination = SyncDestination.anahuac,
   });
 
   final SyncStatus status;
   final bool sessionExpired;
-
-  /// Modo prueba: no se guarda ni se envía nada. Sin esto la tarjeta decía
-  /// "Guardada en Anahuac", porque el estado de envío queda en cero pendientes.
-  final bool trial;
+  final SyncDestination destination;
 
   static const _noRepetir = 'No hace falta repetir la lectura.';
 
@@ -231,14 +259,6 @@ class SyncResultCard extends StatelessWidget {
       String title,
       String detail,
     ) = switch (status) {
-      _ when trial => (
-        Icons.science_outlined,
-        AppTheme.muted,
-        AppTheme.surfaceAlt,
-        AppTheme.surfaceStrong,
-        'Modo prueba',
-        'Este resultado no se guarda ni se envía a Anahuac.',
-      ),
       _ when sessionExpired => (
         Icons.lock_clock_outlined,
         AppTheme.warningInk,
@@ -252,7 +272,7 @@ class SyncResultCard extends StatelessWidget {
         AppTheme.muted,
         AppTheme.surfaceAlt,
         AppTheme.surfaceStrong,
-        'Enviando a Anahuac…',
+        destination.sendingTitle,
         'Ya quedó guardada en esta tablet.',
       ),
       SyncStatus(pending: 0) => (
@@ -260,8 +280,8 @@ class SyncResultCard extends StatelessWidget {
         AppTheme.successInk,
         AppTheme.successSurface,
         AppTheme.successBorder,
-        'Guardada en Anahuac',
-        'Ya aparece en Velocidad Lectora de UTP.',
+        destination.savedTitle,
+        destination.savedDetail,
       ),
       _ => (
         Icons.cloud_off_outlined,

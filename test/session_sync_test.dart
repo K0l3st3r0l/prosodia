@@ -284,14 +284,14 @@ void main() {
     Widget card(
       SyncStatus status, {
       bool expired = false,
-      bool trial = false,
+      SyncDestination destination = SyncDestination.anahuac,
     }) => MaterialApp(
       theme: AppTheme.light,
       home: Scaffold(
         body: SyncResultCard(
           status: status,
           sessionExpired: expired,
-          trial: trial,
+          destination: destination,
         ),
       ),
     );
@@ -326,13 +326,22 @@ void main() {
       expect(find.textContaining('sesión venció'), findsOneWidget);
     });
 
-    // v1.0.47 decía "Enviada a Anahuac" en modo prueba: el estado de envío
-    // queda en cero pendientes y eso se leía como éxito.
-    testWidgets('modo prueba nunca dice que se guardó', (tester) async {
-      await tester.pumpWidget(card(const SyncStatus(), trial: true));
-      expect(find.text('Modo prueba'), findsOneWidget);
-      expect(find.textContaining('Anahuac'), findsOneWidget);
-      expect(find.text('Guardada en Anahuac'), findsNothing);
+    // v1.0.47 decía "Enviada a Anahuac" en modo prueba. Desde que la prueba
+    // respalda resultados, la tarjeta dice dónde quedaron, y nunca Anahuac.
+    testWidgets('colegio de prueba: respaldo propio, nunca Anahuac', (
+      tester,
+    ) async {
+      final trial = SyncDestination.trial('Colegio San José');
+      await tester.pumpWidget(card(const SyncStatus(), destination: trial));
+      expect(find.text('Respaldada'), findsOneWidget);
+      expect(find.textContaining('Colegio San José'), findsOneWidget);
+      expect(find.textContaining('Anahuac'), findsNothing);
+
+      await tester.pumpWidget(
+        card(const SyncStatus(pending: 1, sending: true), destination: trial),
+      );
+      expect(find.text('Respaldando…'), findsOneWidget);
+      expect(find.textContaining('Anahuac'), findsNothing);
     });
   });
 

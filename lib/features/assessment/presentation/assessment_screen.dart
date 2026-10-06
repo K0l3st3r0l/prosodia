@@ -16,6 +16,7 @@ import '../../../core/responsive/responsive.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../features/students/data/student_repository.dart';
 import '../../../features/debug/log_screen.dart';
+import '../../trial/data/trial_repository.dart';
 import '../data/assessment_repository.dart';
 import '../data/reading_size_preference.dart';
 import '../data/stats_repository.dart';
@@ -42,19 +43,19 @@ export 'eval_state.dart';
 final dbProvider = Provider<AppDatabase>((ref) => throw UnimplementedError());
 
 class AssessmentScreen extends ConsumerStatefulWidget {
-  const AssessmentScreen({super.key, this.trial = false});
+  const AssessmentScreen({super.key, this.trialSession});
 
-  /// Modo prueba: sin sesión iniciada, sin alumno y **sin guardar nada**.
+  /// Colegio de prueba: se entró con correo + PIN, no con una cuenta de
+  /// Anahuac. Nada toca Anahuac — ni alumnos, ni estadísticas, ni envíos.
   ///
-  /// Sirve para mostrar o practicar la app sin tocar los datos reales. Los
-  /// cursos salen de los niveles con lecturas sembradas y no de los alumnos
-  /// sincronizados, porque acá no hay credenciales con las que sincronizar.
-  ///
-  /// Nada se persiste ni se sincroniza: `AssessmentSessions.studentId` es una
-  /// FK obligatoria y el endpoint de anahuac rechaza un POST sin `student_id`.
-  /// Guardar exigiría cambios de esquema en los dos lados, y una evaluación de
-  /// práctica no tiene por qué entrar a la serie longitudinal de UTP.
-  final bool trial;
+  /// Los alumnos son los del listado de ese colegio y viven solo en memoria.
+  /// Los resultados se respaldan en el JSON del colegio en el servicio
+  /// Whisper (ver `TrialRepository`), no en la base local: ahí
+  /// `AssessmentSessions.studentId` es una FK a `Students`, que es el espejo de
+  /// Anahuac. Sin listado cargado se evalúa por curso, sin alumno.
+  final TrialSession? trialSession;
+
+  bool get trial => trialSession != null;
 
   @override
   ConsumerState<AssessmentScreen> createState() => _AssessmentScreenState();
@@ -174,9 +175,14 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
   Future<void> _syncAndLoad() async {
     final db = ref.read(dbProvider);
 
-    if (widget.trial) {
-      // Sin sesión no hay estudiantes que traer ni evaluaciones que subir. Los
-      // "cursos" son los niveles que tienen lecturas sembradas localmente.
+    final trial = widget.trialSession;
+    if (trial != null) {
+      _sendPending();
+      if (trial.hasRoster) {
+        _updateStudentLists(trial.students);
+        return;
+      }
+      // Sin listado, los "cursos" son los niveles con lecturas sembradas.
       final niveles = await db.getNivelesConLecturas();
       if (!mounted) return;
       setState(() => _cursos = niveles.map((n) => '$n° básico').toList());
@@ -222,25 +228,31 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
   /// No se espera desde la UI: guardar y mostrar el resultado no dependen de
   /// la red. Lo que cambia es que ahora el desenlace se ve.
   Future<void> _sendPending() async {
-    if (widget.trial) return;
+    final trial = widget.trialSession;
     final repo = AssessmentRepository(ref.read(dbProvider), ApiClient());
+    final trialRepo = TrialRepository();
+    Future<int> pendingCount() => trial == null
+        ? repo.pendingCount()
+        : trialRepo.pendingCount(trial);
 
     _sendsInFlight++;
     _sendStatus.value = _sendStatus.value.copyWith(sending: true);
     SyncStatus result;
     var sent = 0;
     try {
-      final report = await repo.syncPending();
+      final report = trial == null
+          ? await repo.syncPending()
+          : await trialRepo.syncPending(trial);
       sent = report.sent;
       result = SyncStatus(
-        pending: await repo.pendingCount(),
+        pending: await pendingCount(),
         failure: report.failure,
         serverMessage: report.serverMessage,
       );
     } catch (e) {
       log.error('Error enviando evaluaciones', e);
       result = SyncStatus(
-        pending: await repo.pendingCount(),
+        pending: await pendingCount(),
         failure: SyncFailure.unreachable,
       );
     } finally {
@@ -260,9 +272,13 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  sent == 1
-                      ? 'Evaluación guardada en Anahuac.'
-                      : '$sent evaluaciones guardadas en Anahuac.',
+                  trial != null
+                      ? (sent == 1
+                            ? 'Evaluación respaldada.'
+                            : '$sent evaluaciones respaldadas.')
+                      : (sent == 1
+                            ? 'Evaluación guardada en Anahuac.'
+                            : '$sent evaluaciones guardadas en Anahuac.'),
                 ),
               ),
             ],
@@ -319,12 +335,14 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
         // Salir o reintentar a mitad de una evaluación la perdería o competiría
         // con ella; se habilitan solo entre evaluaciones.
         final idle = _state == EvalState.idle;
+        // La sesión vencida de Anahuac no tiene nada que ver con la prueba.
         return SyncStatusBanner(
           status: _sendStatus.value,
-          sessionExpired: ApiClient.sessionExpired.value,
+          sessionExpired: !widget.trial && ApiClient.sessionExpired.value,
           onRetry: idle ? _sendPending : null,
           onLogin: idle ? _relogin : null,
           onShowPending: idle ? _showPending : null,
+          canListPending: !widget.trial,
         );
       },
     );
@@ -347,10 +365,11 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
   void _onCursoChanged(String? curso) async {
     if (curso == null) return;
     final db = ref.read(dbProvider);
-    // En modo prueba el "curso" es un nivel ("3° básico") y no hay alumnos que
-    // buscar; el regex de nivel funciona igual para ambas formas.
+    // En prueba los alumnos están en memoria; sin listado, el "curso" es un
+    // nivel ("3° básico") y no hay alumnos. El regex de nivel funciona igual
+    // para ambas formas.
     final students = widget.trial
-        ? <Student>[]
+        ? _allStudents.where((s) => s.curso == curso).toList()
         : await db.getStudentsByCurso(curso);
     // Extraer número de nivel del curso ("2°A" → "2")
     final nivel = RegExp(r'\d+').firstMatch(curso)?.group(0) ?? '';
@@ -421,20 +440,28 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
 
   /// Salida del modo prueba: vuelve a la pantalla de inicio.
   ///
-  /// No hay sesión que cerrar ni nada que guardar, así que basta con soltar la
-  /// ruta. Se confirma igual porque una evaluación a medias se pierde entera.
+  /// Lo ya guardado queda en la tablet aunque no se haya enviado, y sale la
+  /// próxima vez que alguien del colegio entre con su PIN. Se confirma cuando
+  /// hay una evaluación a medias, que sí se pierde entera, o envíos pendientes.
   Future<void> _exitTrial() async {
     final haySesionEmpezada =
         _selectedTexto != null || _state != EvalState.idle;
+    final pending = _sendStatus.value.pending;
 
-    if (haySesionEmpezada) {
+    if (haySesionEmpezada || pending > 0) {
       final confirm = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Salir de la prueba'),
-          content: const Text(
-            'La prueba no guarda resultados, así que lo que hiciste se pierde. '
-            '¿Quieres salir igual?',
+          content: Text(
+            [
+              if (haySesionEmpezada) 'La evaluación en curso se pierde.',
+              if (pending > 0)
+                'Hay ${pending == 1 ? '1 evaluación' : '$pending evaluaciones'} '
+                    'sin respaldar: quedan en esta tablet y se envían la '
+                    'próxima vez que entres con tu PIN.',
+              '¿Quieres salir igual?',
+            ].join(' '),
           ),
           actions: [
             TextButton(
@@ -621,7 +648,9 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
   }
 
   Future<void> _loadContextData() async {
-    if (_selectedStudent == null) return;
+    // Las estadísticas son de Anahuac: con un alumno de prueba se pediría el
+    // historial de otro niño que tiene el mismo id allá.
+    if (widget.trial || _selectedStudent == null) return;
     setState(() => _loadingContext = true);
     try {
       final repo = StatsRepository(ApiClient());
@@ -667,9 +696,11 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
       _cursoParaClasificar,
     );
 
-    // El resultado se muestra igual —para eso es la prueba— pero no se persiste
-    // ni se sincroniza. Ver `AssessmentScreen.trial`.
-    if (widget.trial || _selectedStudent == null) {
+    if (widget.trial) {
+      await _saveTrialEvaluation(segundos, pcpm, velocidad, nivelLogro);
+      return;
+    }
+    if (_selectedStudent == null) {
       _showResult(pcpm, velocidad, nivelLogro);
       return;
     }
@@ -679,11 +710,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
     if (_saving) return;
     _saving = true;
     try {
-      int? appBuild;
-      try {
-        final packageInfo = await PackageInfo.fromPlatform();
-        appBuild = int.tryParse(packageInfo.buildNumber);
-      } catch (_) {}
+      final appBuild = await _appBuild();
 
       // La tablet guarda primero y envía después: lo que pase con la red o con
       // el servidor no puede costar la lectura del niño.
@@ -728,7 +755,74 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
     _showResult(pcpm, velocidad, nivelLogro);
   }
 
+  Future<int?> _appBuild() async {
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      return int.tryParse(packageInfo.buildNumber);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Respaldo de un colegio de prueba: misma secuencia que el flujo real
+  /// —primero la tablet, después el servidor— con otro destino.
+  Future<void> _saveTrialEvaluation(
+    double segundos,
+    double pcpm,
+    String velocidad,
+    String nivelLogro,
+  ) async {
+    if (_saving) return;
+    _saving = true;
+    try {
+      final student = _selectedStudent;
+      final texto = _selectedTexto;
+      await TrialRepository().saveLocal(widget.trialSession!, {
+        'id': TrialRepository.newResultId(),
+        'alumno_id': student?.id,
+        'alumno': student?.nombreCompleto,
+        'curso': _cursoParaClasificar,
+        'fecha': DateTime.now().toIso8601String(),
+        'lectura_id': texto?.id,
+        'lectura': texto?.titulo,
+        'palabras_leidas': _palabrasLeidas,
+        'errores': _errores,
+        'segundos': segundos,
+        'pcpm': pcpm,
+        'velocidad': velocidad,
+        'nivel_logro': nivelLogro,
+        'calidad': _calidad,
+        'prosodia': _prosodia,
+        'transcripcion': _transcript,
+        'whisper_analizado': _whisperAnalyzed,
+        'app_build': await _appBuild() ?? kAppBuild,
+      });
+    } catch (e) {
+      log.error('No se pudo guardar la evaluación de prueba en la tablet', e);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No se pudo guardar en la tablet. Los datos siguen en pantalla: '
+              'intenta guardar de nuevo.',
+            ),
+            backgroundColor: AppTheme.danger,
+            duration: Duration(seconds: 6),
+          ),
+        );
+      }
+      return;
+    } finally {
+      _saving = false;
+    }
+
+    _sendPending();
+    if (!mounted) return;
+    _showResult(pcpm, velocidad, nivelLogro);
+  }
+
   void _showResult(double pcpm, String velocidad, String nivelLogro) {
+    final trial = widget.trialSession;
     _resultDialogOpen = true;
     showDialog(
       context: context,
@@ -757,8 +851,11 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
                   ]),
                   builder: (context, _) => SyncResultCard(
                     status: _sendStatus.value,
-                    sessionExpired: ApiClient.sessionExpired.value,
-                    trial: widget.trial,
+                    sessionExpired:
+                        trial == null && ApiClient.sessionExpired.value,
+                    destination: trial == null
+                        ? SyncDestination.anahuac
+                        : SyncDestination.trial(trial.colegio),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -807,7 +904,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
 
   String _selectionPrompt() {
     if (_selectedCurso == null) return 'Selecciona un curso';
-    if (!widget.trial && _selectedStudent == null) {
+    if (_requiresStudent && _selectedStudent == null) {
       return 'Selecciona un estudiante';
     }
     if (_textos.isEmpty) return 'No hay lecturas disponibles para este curso';
@@ -959,7 +1056,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
     final idle = _state == EvalState.idle;
 
     return AssessmentControlPanel(
-      trial: widget.trial,
+      studentless: !_requiresStudent,
       state: _state,
       cursos: _cursos,
       selectedCurso: _selectedCurso,
@@ -977,7 +1074,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
       manualReview: _state == EvalState.reviewing ? _buildManualReview() : null,
       scrollController: _leftPanelScrollController,
       scrollable: r.paneStrategy.isDual,
-      syncBanner: widget.trial ? null : _buildSyncBanner(),
+      syncBanner: _buildSyncBanner(),
     );
   }
 
@@ -1098,15 +1195,18 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
       hasCurso: _selectedCurso != null,
       hasStudent: _selectedStudent != null,
       hasReading: _selectedTexto != null,
-      showStudent: !widget.trial,
+      showStudent: _requiresStudent,
       fillHeight: fill,
     );
   }
 
   /// Lo que habilita elegir lectura no es haber alumno, sino haber terminado
-  /// la preparación: en modo prueba esa preparación es solo el curso.
+  /// la preparación: en una prueba sin listado esa preparación es solo el
+  /// curso.
   bool get _preparacionLista =>
-      widget.trial ? _selectedCurso != null : _selectedStudent != null;
+      _requiresStudent ? _selectedStudent != null : _selectedCurso != null;
+
+  bool get _requiresStudent => widget.trialSession?.hasRoster ?? true;
 
   /// En composición apilada, si el área de trabajo aporta algo que el panel de
   /// control —siempre visible primero en ese caso— no muestre ya.

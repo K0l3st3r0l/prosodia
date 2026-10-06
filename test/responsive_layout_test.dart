@@ -209,7 +209,7 @@ void main() {
     Widget? manualReview,
   }) {
     return AssessmentControlPanel(
-      trial: false,
+      studentless: false,
       state: state,
       cursos: const ['1°A', '2°B', '4°B', '8°A'],
       selectedCurso: '4°B',
@@ -337,7 +337,7 @@ void main() {
       (context, r) => AssessmentLayout(
         workAreaFirst: false,
         controlPanel: AssessmentControlPanel(
-          trial: false,
+          studentless: false,
           state: EvalState.idle,
           cursos: const ['1°A', '4°B'],
           selectedCurso: null,
@@ -378,7 +378,7 @@ void main() {
 
     Widget controlPanelFor({required bool hasCurso, required bool scrollable}) =>
         AssessmentControlPanel(
-          trial: false,
+          studentless: false,
           state: EvalState.idle,
           cursos: const ['1°A', '4°B'],
           selectedCurso: hasCurso ? '4°B' : null,

@@ -4,8 +4,13 @@ services:
     container_name: prosodia-whisper
     restart: unless-stopped
     env_file: .env
+    environment:
+      TRIAL_DATA_DIR: /data/trial
     volumes:
       - whisper_models:/root/.cache/huggingface
+      # Colegios de prueba (alumnos y resultados). Fuera del repo: son nombres
+      # de menores de otros colegios y el repo se publica en GitHub.
+      - /root/apps/prosodia-data/trial:/data/trial
     networks:
       - nginx-network
 

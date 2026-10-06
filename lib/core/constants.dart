@@ -12,5 +12,10 @@ const String kOtaApkUrl = '$kOtaUrl/prosodia-latest.apk';
 const String kAppVersion = '1.0.0';
 const int kAppBuild = 1;
 
-const String kWhisperUrl = 'https://whisper.laravas.com/transcribe';
+const String kWhisperBase = 'https://whisper.laravas.com';
+const String kWhisperUrl = '$kWhisperBase/transcribe';
+
+// Colegios de prueba (correo + PIN). Viven en el servicio Whisper y no en
+// anahuac: son alumnos de otros colegios. Ver whisper/trial.py.
+const String kTrialUrl = '$kWhisperBase/trial';
 const String kWhisperApiKey = 'prosodia-wh-9Km2PxRt4vYzQ8wB';

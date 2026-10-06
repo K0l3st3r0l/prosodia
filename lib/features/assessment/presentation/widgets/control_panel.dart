@@ -12,7 +12,7 @@ import 'surfaces.dart';
 class AssessmentControlPanel extends StatelessWidget {
   const AssessmentControlPanel({
     super.key,
-    required this.trial,
+    required this.studentless,
     required this.state,
     required this.cursos,
     required this.selectedCurso,
@@ -31,10 +31,10 @@ class AssessmentControlPanel extends StatelessWidget {
     this.syncBanner,
   });
 
-  /// Modo prueba: sin alumno. El panel muestra solo la selección de curso, y el
-  /// botón de grabación se habilita con curso + lectura en vez de alumno +
-  /// lectura.
-  final bool trial;
+  /// Sin alumno: prueba de un colegio que aún no tiene listado cargado. El
+  /// panel muestra solo la selección de curso, y el botón de grabación se
+  /// habilita con curso + lectura en vez de alumno + lectura.
+  final bool studentless;
 
   final EvalState state;
 
@@ -76,14 +76,14 @@ class AssessmentControlPanel extends StatelessWidget {
       children: [
         if (syncBanner != null) syncBanner!,
         _WorkflowHeader(
-          trial: trial,
+          studentless: studentless,
           hasCurso: selectedCurso != null,
           hasStudent: selectedStudent != null,
           hasReading: selectedTexto != null,
         ),
         SizedBox(height: r.spacing.md),
         _PreparationCard(
-          trial: trial,
+          studentless: studentless,
           cursos: cursos,
           selectedCurso: selectedCurso,
           onCursoChanged: onCursoChanged,
@@ -115,7 +115,9 @@ class AssessmentControlPanel extends StatelessWidget {
               onStart: onStartRecording,
               onStop: onStopRecording,
               enabled:
-                  (trial ? selectedCurso != null : selectedStudent != null) &&
+                  (studentless
+                      ? selectedCurso != null
+                      : selectedStudent != null) &&
                   selectedTexto != null,
             ),
         ],
@@ -133,13 +135,13 @@ class AssessmentControlPanel extends StatelessWidget {
 
 class _WorkflowHeader extends StatelessWidget {
   const _WorkflowHeader({
-    required this.trial,
+    required this.studentless,
     required this.hasCurso,
     required this.hasStudent,
     required this.hasReading,
   });
 
-  final bool trial;
+  final bool studentless;
   final bool hasCurso;
   final bool hasStudent;
   final bool hasReading;
@@ -159,7 +161,7 @@ class _WorkflowHeader extends StatelessWidget {
         hasCurso: hasCurso,
         hasStudent: hasStudent,
         hasReading: hasReading,
-        showStudent: !trial,
+        showStudent: !studentless,
       ),
     );
   }
@@ -167,7 +169,7 @@ class _WorkflowHeader extends StatelessWidget {
 
 class _PreparationCard extends StatelessWidget {
   const _PreparationCard({
-    required this.trial,
+    required this.studentless,
     required this.cursos,
     required this.selectedCurso,
     required this.onCursoChanged,
@@ -176,7 +178,7 @@ class _PreparationCard extends StatelessWidget {
     required this.onStudentChanged,
   });
 
-  final bool trial;
+  final bool studentless;
   final List<String> cursos;
   final String? selectedCurso;
   final ValueChanged<String?>? onCursoChanged;
@@ -191,7 +193,7 @@ class _PreparationCard extends StatelessWidget {
 
     return SectionCard(
       title: 'Preparación',
-      subtitle: trial
+      subtitle: studentless
           ? 'Selecciona el curso para ver sus lecturas.'
           : 'Selecciona curso y estudiante antes de elegir la lectura.',
       icon: Icons.how_to_reg_rounded,
@@ -214,9 +216,9 @@ class _PreparationCard extends StatelessWidget {
             ],
             onChanged: onCursoChanged,
           ),
-          // En modo prueba no hay alumno: no hay sesión con la cual haberlos
-          // sincronizado, y el resultado no se guarda contra nadie.
-          if (!trial) ...[
+          // Sin listado no hay alumnos que ofrecer: un selector siempre vacío
+          // solo confundiría.
+          if (!studentless) ...[
             SizedBox(height: r.spacing.md),
             Text('Estudiante', style: theme.textTheme.titleSmall),
             SizedBox(height: r.spacing.sm),
