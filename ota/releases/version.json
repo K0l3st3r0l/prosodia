@@ -1,6 +1,6 @@
 {
-  "version": "1.0.46",
-  "build": 46,
-  "url": "https://ota.laravas.com/prosodia-latest.apk?v=46",
-  "changelog": "Cuadro Analizando centrado y resultados alineados"
+  "version": "1.0.47",
+  "build": 47,
+  "url": "https://ota.laravas.com/prosodia-latest.apk?v=47",
+  "changelog": "Avisa cuando una evaluación no se envía y muestra las pendientes"
 }
