@@ -1,6 +1,6 @@
 {
-  "version": "1.0.47",
-  "build": 47,
-  "url": "https://ota.laravas.com/prosodia-latest.apk?v=47",
-  "changelog": "Avisa cuando una evaluación no se envía y muestra las pendientes"
+  "version": "1.0.48",
+  "build": 48,
+  "url": "https://ota.laravas.com/prosodia-latest.apk?v=48",
+  "changelog": "Confirma en pantalla cuando la evaluación queda guardada en Anahuac"
 }
