@@ -194,76 +194,140 @@ class SyncStatusBanner extends StatelessWidget {
   }
 }
 
-/// Línea del diálogo de resultado que dice si la evaluación llegó a anahuac.
+/// Estado del envío en el diálogo de resultado, arriba de los números.
 ///
-/// "Evaluación guardada" era cierto solo para la tablet; el docente lo leía
-/// como "ya está en el sistema".
+/// Antes era una línea chica al final del diálogo y el docente no se enteraba
+/// de si la evaluación había llegado a Anahuac. Ahora es lo primero que se ve:
+/// verde cuando el servidor la confirmó, ámbar cuando quedó solo en la tablet.
 ///
 /// Medidas fijas y no de `context.responsive`: vive dentro de un diálogo, que
 /// es otra ruta y queda fuera del `ResponsiveScope` de la pantalla.
-class SyncResultLine extends StatelessWidget {
-  const SyncResultLine({
+class SyncResultCard extends StatelessWidget {
+  const SyncResultCard({
     super.key,
     required this.status,
     required this.sessionExpired,
+    required this.trial,
   });
 
   final SyncStatus status;
   final bool sessionExpired;
 
-  static const double _iconSize = 20;
+  /// Modo prueba: no se guarda ni se envía nada. Sin esto la tarjeta decía
+  /// "Guardada en Anahuac", porque el estado de envío queda en cero pendientes.
+  final bool trial;
+
+  static const _noRepetir = 'No hace falta repetir la lectura.';
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final (IconData? icon, Color color, String text) = switch (status) {
+    final (
+      IconData? icon,
+      Color ink,
+      Color surface,
+      Color border,
+      String title,
+      String detail,
+    ) = switch (status) {
+      _ when trial => (
+        Icons.science_outlined,
+        AppTheme.muted,
+        AppTheme.surfaceAlt,
+        AppTheme.surfaceStrong,
+        'Modo prueba',
+        'Este resultado no se guarda ni se envía a Anahuac.',
+      ),
       _ when sessionExpired => (
         Icons.lock_clock_outlined,
         AppTheme.warningInk,
-        'Guardada en esta tablet, sin enviar: tu sesión venció.',
+        AppTheme.warningSurface,
+        AppTheme.warningBorder,
+        'Guardada solo en esta tablet',
+        'Tu sesión venció. Se enviará cuando vuelvas a iniciar sesión. $_noRepetir',
       ),
       SyncStatus(sending: true) => (
         null,
         AppTheme.muted,
+        AppTheme.surfaceAlt,
+        AppTheme.surfaceStrong,
         'Enviando a Anahuac…',
+        'Ya quedó guardada en esta tablet.',
       ),
       SyncStatus(pending: 0) => (
-        Icons.cloud_done_outlined,
-        AppTheme.tertiary,
-        'Enviada a Anahuac.',
+        Icons.check_circle_rounded,
+        AppTheme.successInk,
+        AppTheme.successSurface,
+        AppTheme.successBorder,
+        'Guardada en Anahuac',
+        'Ya aparece en Velocidad Lectora de UTP.',
       ),
       _ => (
         Icons.cloud_off_outlined,
         AppTheme.warningInk,
-        'Guardada en esta tablet, sin enviar. Revisa el aviso en el panel.',
+        AppTheme.warningSurface,
+        AppTheme.warningBorder,
+        'Guardada solo en esta tablet',
+        '${_motivo(status)} $_noRepetir',
       ),
     };
 
-    return Padding(
-      padding: const EdgeInsets.only(top: 16),
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: border),
+      ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (icon == null)
-            SizedBox(
-              width: _iconSize,
-              height: _iconSize,
-              child: CircularProgressIndicator(strokeWidth: 2, color: color),
-            )
-          else
-            Icon(icon, size: _iconSize, color: color),
-          const SizedBox(width: 8),
+          SizedBox(
+            width: 28,
+            height: 28,
+            child: icon == null
+                ? Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: ink,
+                    ),
+                  )
+                : Icon(icon, size: 28, color: ink),
+          ),
+          const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              text,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: color,
-                fontWeight: FontWeight.w600,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: ink,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  detail,
+                  style: theme.textTheme.bodyMedium?.copyWith(color: ink),
+                ),
+              ],
             ),
           ),
         ],
       ),
     );
   }
+
+  static String _motivo(SyncStatus status) => switch (status.failure) {
+    SyncFailure.forbidden =>
+      '${status.serverMessage ?? 'Tu cuenta no tiene permiso para registrar evaluaciones.'} '
+          'Pide a UTP que revise tu usuario.',
+    SyncFailure.rejected =>
+      'El servidor la rechazó${status.serverMessage == null ? '.' : ': ${status.serverMessage}.'}',
+    _ =>
+      'No hay conexión con el servidor. Se enviará sola en el próximo intento.',
+  };
 }

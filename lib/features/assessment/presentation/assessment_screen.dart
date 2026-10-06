@@ -82,6 +82,11 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
   );
   int _sendsInFlight = 0;
   bool _saving = false;
+
+  // Con el diálogo de resultado abierto, la tarjeta ya informa el envío; el
+  // aviso inferior queda para lo que termina fuera de él (diálogo cerrado
+  // antes de tiempo, pendientes de sesiones anteriores, "Reintentar").
+  bool _resultDialogOpen = false;
   EvalState _state = EvalState.idle;
   int _titleTaps = 0;
 
@@ -223,8 +228,10 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
     _sendsInFlight++;
     _sendStatus.value = _sendStatus.value.copyWith(sending: true);
     SyncStatus result;
+    var sent = 0;
     try {
       final report = await repo.syncPending();
+      sent = report.sent;
       result = SyncStatus(
         pending: await repo.pendingCount(),
         failure: report.failure,
@@ -243,6 +250,28 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
     _sendStatus.value = _sendsInFlight > 0
         ? result.copyWith(sending: true)
         : result;
+
+    if (sent > 0 && !_resultDialogOpen) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  sent == 1
+                      ? 'Evaluación guardada en Anahuac.'
+                      : '$sent evaluaciones guardadas en Anahuac.',
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: AppTheme.successInk,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
   }
 
   /// Recalcula cuántas faltan sin intentar enviar: al volver de la lista de
@@ -700,11 +729,13 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
   }
 
   void _showResult(double pcpm, String velocidad, String nivelLogro) {
+    _resultDialogOpen = true;
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        title: const Text('Evaluación guardada'),
+        // El título ya no afirma "guardada": la tarjeta de abajo dice dónde.
+        title: const Text('Resultado de la evaluación'),
         // `AlertDialog` no hace scroll de su contenido: con el texto del
         // sistema escalado, cinco filas de resultado no caben en la altura
         // máxima del diálogo en un teléfono.
@@ -719,6 +750,18 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                ListenableBuilder(
+                  listenable: Listenable.merge([
+                    _sendStatus,
+                    ApiClient.sessionExpired,
+                  ]),
+                  builder: (context, _) => SyncResultCard(
+                    status: _sendStatus.value,
+                    sessionExpired: ApiClient.sessionExpired.value,
+                    trial: widget.trial,
+                  ),
+                ),
+                const SizedBox(height: 12),
                 ResultRow(label: 'PCPM', value: pcpm.toStringAsFixed(1)),
                 ResultRow(label: 'Velocidad', value: velocidad),
                 ResultRow(label: 'Nivel de logro', value: nivelLogro),
@@ -726,16 +769,6 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
                 ResultRow(
                   label: 'Prosodia',
                   value: formatChoiceLabel(_prosodia),
-                ),
-                ListenableBuilder(
-                  listenable: Listenable.merge([
-                    _sendStatus,
-                    ApiClient.sessionExpired,
-                  ]),
-                  builder: (context, _) => SyncResultLine(
-                    status: _sendStatus.value,
-                    sessionExpired: ApiClient.sessionExpired.value,
-                  ),
                 ),
               ],
             ),
@@ -752,7 +785,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
           ),
         ],
       ),
-    );
+    ).whenComplete(() => _resultDialogOpen = false);
   }
 
   /// Deja la sesión lista para la siguiente evaluación.

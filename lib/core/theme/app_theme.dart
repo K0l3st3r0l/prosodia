@@ -35,6 +35,12 @@ abstract final class AppTheme {
   static const Color warningSurface = Color(0xFFFFF5E8);
   static const Color warningBorder = Color(0xFFF8D5A1);
 
+  // Evaluación confirmada por el servidor. Verde propio y no `tertiary` puro:
+  // el esmeralda de marca no alcanza contraste AA como texto sobre fondo claro.
+  static const Color successInk = Color(0xFF047857);
+  static const Color successSurface = Color(0xFFECFDF5);
+  static const Color successBorder = Color(0xFFA7F3D0);
+
   // Solid colors instead of gradients — older Android GPUs (and some panels with
   // limited color depth) render LinearGradient with severe banding/garbage that
   // looks like pixel corruption. Solid colors render correctly everywhere.

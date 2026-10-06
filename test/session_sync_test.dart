@@ -280,6 +280,62 @@ void main() {
     }
   });
 
+  group('SyncResultCard', () {
+    Widget card(
+      SyncStatus status, {
+      bool expired = false,
+      bool trial = false,
+    }) => MaterialApp(
+      theme: AppTheme.light,
+      home: Scaffold(
+        body: SyncResultCard(
+          status: status,
+          sessionExpired: expired,
+          trial: trial,
+        ),
+      ),
+    );
+
+    testWidgets('confirmada por el servidor', (tester) async {
+      await tester.pumpWidget(card(const SyncStatus()));
+      expect(find.text('Guardada en Anahuac'), findsOneWidget);
+    });
+
+    testWidgets('en curso', (tester) async {
+      await tester.pumpWidget(
+        card(const SyncStatus(pending: 1, sending: true)),
+      );
+      expect(find.text('Enviando a Anahuac…'), findsOneWidget);
+    });
+
+    testWidgets('sin red: queda en la tablet y no hay que repetir', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        card(const SyncStatus(pending: 1, failure: SyncFailure.unreachable)),
+      );
+      expect(find.text('Guardada solo en esta tablet'), findsOneWidget);
+      expect(find.textContaining('No hace falta repetir'), findsOneWidget);
+    });
+
+    testWidgets('sesión vencida gana aunque no queden pendientes', (
+      tester,
+    ) async {
+      await tester.pumpWidget(card(const SyncStatus(), expired: true));
+      expect(find.text('Guardada solo en esta tablet'), findsOneWidget);
+      expect(find.textContaining('sesión venció'), findsOneWidget);
+    });
+
+    // v1.0.47 decía "Enviada a Anahuac" en modo prueba: el estado de envío
+    // queda en cero pendientes y eso se leía como éxito.
+    testWidgets('modo prueba nunca dice que se guardó', (tester) async {
+      await tester.pumpWidget(card(const SyncStatus(), trial: true));
+      expect(find.text('Modo prueba'), findsOneWidget);
+      expect(find.textContaining('Anahuac'), findsOneWidget);
+      expect(find.text('Guardada en Anahuac'), findsNothing);
+    });
+  });
+
   group('SyncStatusBanner', () {
     Widget banner(SyncStatus status, {bool sessionExpired = false}) =>
         MaterialApp(
