@@ -25,6 +25,7 @@ class AssessmentAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.onCheckUpdate,
     required this.onSync,
     required this.onLogout,
+    this.onShowResults,
   });
 
   /// Viewport bajo. Llega por parámetro y no desde `context.responsive` porque
@@ -43,6 +44,10 @@ class AssessmentAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback onCheckUpdate;
   final VoidCallback onSync;
   final VoidCallback onLogout;
+
+  /// Resultados del colegio de prueba. Ocupa el lugar de "sincronizar", que en
+  /// prueba no existe: la barra sigue con tres acciones.
+  final VoidCallback? onShowResults;
 
   static const double _compactHeight = 56;
   static const double _regularHeight = 86;
@@ -146,6 +151,12 @@ class AssessmentAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
         // En modo prueba no hay sesión ni estudiantes que sincronizar: el botón
         // solo podría fallar con un 401.
+        if (trial && onShowResults != null)
+          _HeaderAction(
+            icon: Icons.insights_rounded,
+            tooltip: 'Ver resultados',
+            onPressed: state == EvalState.idle ? onShowResults : null,
+          ),
         if (!trial)
           if (syncing)
             const _ActionSpinner()

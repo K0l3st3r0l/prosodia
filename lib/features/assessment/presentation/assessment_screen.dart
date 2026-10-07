@@ -17,6 +17,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../features/students/data/student_repository.dart';
 import '../../../features/debug/log_screen.dart';
 import '../../trial/data/trial_repository.dart';
+import '../../trial/presentation/trial_results_screen.dart';
 import '../data/assessment_repository.dart';
 import '../data/reading_size_preference.dart';
 import '../data/stats_repository.dart';
@@ -479,6 +480,17 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
     }
 
     if (mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _showTrialResults() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TrialResultsScreen(
+          session: widget.trialSession!,
+          initialCurso: _selectedCurso,
+        ),
+      ),
+    );
   }
 
   Future<void> _logout() async {
@@ -965,6 +977,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
                 onCheckUpdate: _checkForUpdate,
                 onSync: _syncAndLoad,
                 onLogout: widget.trial ? _exitTrial : _logout,
+                onShowResults: widget.trial ? _showTrialResults : null,
               ),
         body: ColoredBox(
           color: focusMode ? AppTheme.surface : AppTheme.appBackground,

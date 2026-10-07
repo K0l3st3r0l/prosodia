@@ -58,6 +58,68 @@ class TrialSession {
   bool get hasRoster => students.isNotEmpty;
 }
 
+/// Una evaluación de un colegio de prueba, tal como se muestra en Resultados.
+class TrialResult {
+  const TrialResult({
+    required this.id,
+    required this.alumnoId,
+    required this.alumno,
+    required this.curso,
+    required this.fecha,
+    required this.lectura,
+    required this.pcpm,
+    required this.velocidad,
+    required this.nivelLogro,
+    required this.calidad,
+    required this.prosodia,
+    this.pending = false,
+  });
+
+  factory TrialResult.fromJson(
+    Map<String, dynamic> json, {
+    bool pending = false,
+  }) => TrialResult(
+    id: json['id'] as String,
+    alumnoId: json['alumno_id'] as int?,
+    alumno: json['alumno'] as String?,
+    curso: json['curso'] as String? ?? '',
+    fecha: DateTime.tryParse(json['fecha'] as String? ?? '') ?? DateTime(2000),
+    lectura: json['lectura'] as String?,
+    pcpm: (json['pcpm'] as num?)?.toDouble() ?? 0,
+    velocidad: json['velocidad'] as String? ?? '',
+    nivelLogro: json['nivel_logro'] as String? ?? '',
+    calidad: json['calidad'] as String? ?? '',
+    prosodia: json['prosodia'] as String? ?? '',
+    pending: pending,
+  );
+
+  final String id;
+  final int? alumnoId;
+  final String? alumno;
+  final String curso;
+  final DateTime fecha;
+  final String? lectura;
+  final double pcpm;
+  final String velocidad;
+  final String nivelLogro;
+  final String calidad;
+  final String prosodia;
+
+  /// Guardada en esta tablet, todavía sin llegar al servidor.
+  final bool pending;
+}
+
+/// Lo que devuelve [TrialRepository.fetchResults]: las del servidor más las
+/// que siguen en la tablet, y si el servidor no respondió, por qué.
+class TrialResultsLoad {
+  const TrialResultsLoad(this.results, {this.error});
+
+  final List<TrialResult> results;
+
+  /// `null` si el servidor respondió. Con error igual vienen las de la tablet.
+  final String? error;
+}
+
 /// Por qué no se pudo entrar, dicho para quien está frente a la tablet.
 class TrialLoginException implements Exception {
   const TrialLoginException(this.message);
@@ -201,6 +263,55 @@ class TrialRepository {
       failure: failure,
       serverMessage: serverMessage,
     );
+  }
+
+  /// Resultados del colegio con que se entró, del más reciente al más antiguo.
+  ///
+  /// Suma las que siguen en la tablet: una evaluación recién guardada sin red
+  /// tiene que aparecer igual, o la profesora la repetiría.
+  Future<TrialResultsLoad> fetchResults(TrialSession session) async {
+    final prefs = await SharedPreferences.getInstance();
+    final local = [
+      for (final e in _read(prefs))
+        if (e['colegio_id'] == session.colegioId)
+          TrialResult.fromJson(
+            Map<String, dynamic>.from(e['result'] as Map),
+            pending: true,
+          ),
+    ];
+
+    List<TrialResult> remote = const [];
+    String? error;
+    try {
+      final res = await _dio.get<Map<String, dynamic>>(
+        '/results',
+        options: Options(
+          headers: {'Authorization': 'Bearer ${session.token}'},
+        ),
+      );
+      remote = [
+        for (final r in (res.data!['resultados'] as List))
+          TrialResult.fromJson(Map<String, dynamic>.from(r as Map)),
+      ];
+    } on DioException catch (e) {
+      final status = e.response?.statusCode;
+      error = switch (status) {
+        401 => 'La sesión de prueba venció. Sal y vuelve a entrar con tu PIN.',
+        null || >= 500 =>
+          'No hay conexión con el servidor. Se muestran solo las evaluaciones '
+              'guardadas en esta tablet.',
+        _ => 'No se pudieron cargar los resultados.',
+      };
+      log.warn('Resultados de prueba sin cargar ($status)');
+    }
+
+    // Una que se envió entre leer la cola y la respuesta vendría dos veces.
+    final remoteIds = {for (final r in remote) r.id};
+    final all = [
+      ...local.where((r) => !remoteIds.contains(r.id)),
+      ...remote,
+    ]..sort((a, b) => b.fecha.compareTo(a.fecha));
+    return TrialResultsLoad(all, error: error);
   }
 
   static List<Map<String, dynamic>> _read(SharedPreferences prefs) {

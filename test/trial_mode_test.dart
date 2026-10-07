@@ -70,7 +70,7 @@ void main() {
     ),
   );
 
-  Widget bar({required bool trial}) => MaterialApp(
+  Widget bar({required bool trial, VoidCallback? onShowResults}) => MaterialApp(
     theme: AppTheme.light,
     home: ResponsiveScope(
       builder: (context, r) => Scaffold(
@@ -84,6 +84,7 @@ void main() {
           onCheckUpdate: () {},
           onSync: () {},
           onLogout: () {},
+          onShowResults: onShowResults,
         ),
         body: const SizedBox.shrink(),
       ),
@@ -233,6 +234,22 @@ void main() {
   });
 
   group('Barra superior', () {
+    testWidgets('en prueba ofrece ver resultados del colegio', (tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(bar(trial: true, onShowResults: () {}));
+      expect(find.byTooltip('Ver resultados'), findsOneWidget);
+
+      await tester.pumpWidget(bar(trial: false, onShowResults: () {}));
+      expect(
+        find.byTooltip('Ver resultados'),
+        findsNothing,
+        reason: 'Los resultados de Anahuac se ven en Anahuac.',
+      );
+    });
+
     testWidgets('en prueba no ofrece sincronizar', (tester) async {
       tester.view.physicalSize = const Size(1280, 800);
       tester.view.devicePixelRatio = 1.0;

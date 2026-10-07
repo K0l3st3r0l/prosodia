@@ -195,6 +195,30 @@ class TrialTest(unittest.TestCase):
         )
         self.assertEqual(r.status_code, 400)
 
+    def test_listado_de_resultados_solo_del_propio_colegio(self):
+        token = self.login().json()["token"]
+        auth = {**KEY, "Authorization": f"Bearer {token}"}
+        client.post("/trial/results", json=result(id="viejo", fecha="2026-10-01T09:00:00"), headers=auth)
+        client.post("/trial/results", json=result(id="nuevo", fecha="2026-10-06T09:00:00",
+                                                  transcripcion="hola"), headers=auth)
+
+        admin("colegio", "Colegio Ajeno")
+        out = admin("usuario", "colegio-ajeno", "otra@ajeno.cl")
+        pin = out.split("PIN: ")[1].split()[0]
+        ajeno = self.login(correo="otra@ajeno.cl", pin=pin).json()["token"]
+
+        r = client.get("/trial/results", headers=auth)
+        self.assertEqual(r.status_code, 200, r.text)
+        ids = [x["id"] for x in r.json()["resultados"]]
+        self.assertLess(ids.index("nuevo"), ids.index("viejo"))
+        self.assertNotIn("transcripcion", r.text)
+        self.assertNotIn("evaluador", r.text)
+
+        r = client.get("/trial/results", headers={**KEY, "Authorization": f"Bearer {ajeno}"})
+        self.assertEqual(r.json(), {"resultados": []})
+
+        self.assertEqual(client.get("/trial/results", headers=KEY).status_code, 401)
+
     def test_token_falso_o_vencido(self):
         token = self.login().json()["token"]
         bad = token[:-2] + ("AA" if not token.endswith("AA") else "BB")

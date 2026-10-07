@@ -178,3 +178,29 @@ def save_result(
         })
         store.save(colegio)
     return {"ok": True, "duplicado": False}
+
+
+# Lo que ve la profesora en la pantalla de resultados. La transcripción y el
+# id del evaluador quedan solo en el respaldo.
+_LISTED = (
+    "id", "alumno_id", "alumno", "curso", "fecha", "lectura",
+    "palabras_leidas", "errores", "segundos", "pcpm", "velocidad",
+    "nivel_logro", "calidad", "prosodia",
+)
+
+
+@router.get("/results")
+def list_results(authorization: str = Header(""), x_api_key: str = Header("")):
+    """Resultados del colegio de quien entró, del más reciente al más antiguo.
+
+    El colegio sale del token, nunca de un parámetro: no hay forma de pedir los
+    de otro. Todo el colegio ve todo (ver registro de decisiones 2026-10-06).
+    """
+    _check_api_key(x_api_key)
+    token = read_token(authorization)
+    colegio = store.load(token["c"])
+    resultados = [
+        {k: r.get(k) for k in _LISTED} for r in colegio.get("resultados", [])
+    ]
+    resultados.sort(key=lambda r: r["fecha"] or "", reverse=True)
+    return {"resultados": resultados}

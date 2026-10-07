@@ -11,7 +11,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:prosodia/core/theme/app_theme.dart';
 import 'package:prosodia/features/assessment/data/assessment_repository.dart';
 import 'package:prosodia/features/trial/data/trial_repository.dart';
+import 'package:prosodia/core/database/app_database.dart';
+import 'package:prosodia/core/responsive/responsive.dart';
 import 'package:prosodia/features/trial/presentation/trial_login_screen.dart';
+import 'package:prosodia/features/trial/presentation/trial_results_screen.dart';
 
 /// Colegios de prueba: correo + PIN, listado propio y respaldo de resultados
 /// fuera de Anahuac. Lo que se fija acá es que un resultado guardado en la
@@ -155,6 +158,187 @@ void main() {
     });
   });
 
+  Map<String, dynamic> remoto(
+    String id, {
+    int? alumnoId = 1,
+    String curso = '1°A',
+    String fecha = '2026-10-06T10:00:00',
+    String nivel = 'Lo Esperado',
+  }) => {
+    'id': id,
+    'alumno_id': alumnoId,
+    'alumno': 'Pérez Soto Ana',
+    'curso': curso,
+    'fecha': fecha,
+    'lectura': 'Tito, el perro alegre',
+    'pcpm': 72.5,
+    'velocidad': 'Rápida',
+    'nivel_logro': nivel,
+    'calidad': 'fluida',
+    'prosodia': 'adecuada',
+  };
+
+  group('fetchResults', () {
+    test('suma las de la tablet, sin duplicar, más reciente primero', () async {
+      await repo.saveLocal(session(), remoto('enviada'));
+      await repo.saveLocal(
+        session(),
+        remoto('solo-tablet', fecha: '2026-10-06T12:00:00'),
+      );
+      await repo.saveLocal(session('otro'), remoto('ajena'));
+      adapter.respond = (o) => (200, {
+        'resultados': [remoto('enviada'), remoto('vieja', fecha: '2026-10-01T09:00:00')],
+      });
+
+      final load = await repo.fetchResults(session());
+      expect(load.error, isNull);
+      expect(load.results.map((r) => r.id), ['solo-tablet', 'enviada', 'vieja']);
+      expect(load.results.first.pending, isTrue);
+      expect(load.results[1].pending, isFalse);
+      expect(adapter.lastAuth, 'Bearer tok');
+    });
+
+    test('sin red muestra las de la tablet y lo dice', () async {
+      await repo.saveLocal(session(), remoto('r1'));
+      adapter.offline = true;
+      final load = await repo.fetchResults(session());
+      expect(load.results.map((r) => r.id), ['r1']);
+      expect(load.error, contains('conexión'));
+    });
+
+    test('token vencido pide volver a entrar con el PIN', () async {
+      adapter.respond = (_) => (401, {'detail': 'venció'});
+      final load = await repo.fetchResults(session());
+      expect(load.error, contains('PIN'));
+    });
+  });
+
+  group('Pantalla de resultados', () {
+    final roster = TrialSession(
+      token: 'tok',
+      colegioId: 'san-jose',
+      colegio: 'Colegio San José',
+      correo: 'profe@sj.cl',
+      students: [
+        for (final (id, nombre, curso) in [
+          (1, 'Pérez Soto Ana', '1°A'),
+          (2, 'Rojas Luis', '1°A'),
+          (3, 'Abello Zara', '1°B'),
+        ])
+          Student(
+            id: id,
+            rut: '',
+            nombreCompleto: nombre,
+            curso: curso,
+            activo: true,
+            syncedAt: DateTime(2026, 10, 6),
+          ),
+      ],
+    );
+
+    Widget screen({String? initialCurso, double textScale = 1}) => MediaQuery(
+      data: MediaQueryData(
+        size: const Size(1280, 800),
+        textScaler: TextScaler.linear(textScale),
+      ),
+      child: MaterialApp(
+        theme: AppTheme.light,
+        home: TrialResultsScreen(
+          session: roster,
+          initialCurso: initialCurso,
+          repository: repo,
+        ),
+      ),
+    );
+
+    setUp(() {
+      adapter.respond = (o) => (200, {
+        'resultados': [
+          remoto('a2', fecha: '2026-10-06T11:00:00', nivel: 'Bajo lo Esperado'),
+          remoto('a1'),
+          remoto('b1', alumnoId: 3, curso: '1°B'),
+        ],
+      });
+    });
+
+    testWidgets('agrupa por alumno y muestra a quién falta evaluar', (
+      tester,
+    ) async {
+      await tester.pumpWidget(screen(initialCurso: '1°A'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Colegio San José'), findsOneWidget);
+      expect(
+        find.text('2 evaluaciones · 1 de 2 alumnos evaluados'),
+        findsOneWidget,
+      );
+      expect(find.text('Pérez Soto Ana'), findsOneWidget);
+      expect(find.text('2 lecturas'), findsOneWidget);
+      expect(find.text('Bajo lo Esperado'), findsOneWidget);
+      expect(find.text('Sin evaluar (1)'), findsOneWidget);
+
+      await tester.tap(find.text('Sin evaluar (1)'));
+      await tester.pumpAndSettle();
+      expect(find.text('Rojas Luis'), findsOneWidget);
+    });
+
+    testWidgets('cambia de curso con los chips', (tester) async {
+      await tester.pumpWidget(screen(initialCurso: '1°A'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('1°B'));
+      await tester.pumpAndSettle();
+      expect(find.text('Abello Zara'), findsOneWidget);
+      expect(find.text('Pérez Soto Ana'), findsNothing);
+      expect(
+        find.text('1 evaluación · 1 de 1 alumnos evaluados'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('marca lo que sigue solo en la tablet', (tester) async {
+      await repo.saveLocal(
+        roster,
+        remoto('pendiente', alumnoId: 2, fecha: '2026-10-06T12:00:00'),
+      );
+      await tester.pumpWidget(screen(initialCurso: '1°A'));
+      await tester.pumpAndSettle();
+      expect(find.text('Sin respaldar'), findsOneWidget);
+      expect(find.textContaining('2 de 2 alumnos'), findsOneWidget);
+    });
+
+    for (final (size, scale) in [
+      (const Size(1280, 800), 1.3),
+      (const Size(411, 891), 1.3),
+    ]) {
+      testWidgets('sin desbordes en $size @${scale}x', (tester) async {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.light,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: TextScaler.linear(scale)),
+              child: child!,
+            ),
+            home: ResponsiveScope(
+              builder: (context, r) => TrialResultsScreen(
+                session: roster,
+                initialCurso: '1°A',
+                repository: repo,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      });
+    }
+  });
+
   group('Pantalla de PIN', () {
     Widget screen() => MaterialApp(
       theme: AppTheme.light,
@@ -226,9 +410,9 @@ class _FakeAdapter implements HttpClientAdapter {
     Stream<Uint8List>? requestStream,
     Future<void>? cancelFuture,
   ) async {
+    lastAuth = options.headers['Authorization'] as String?;
     if (options.method == 'POST') {
       posts++;
-      lastAuth = options.headers['Authorization'] as String?;
       lastBody = options.data is Map
           ? Map<String, dynamic>.from(options.data as Map)
           : null;
