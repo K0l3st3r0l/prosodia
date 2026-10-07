@@ -6,6 +6,7 @@ modelo Whisper:
     docker run --rm -v "$PWD":/app -w /app whisper-whisper python test_trial.py
 """
 
+import json
 import os
 import subprocess
 import sys
@@ -94,6 +95,39 @@ class TrialTest(unittest.TestCase):
             [("Díaz Mora Eva", "2°A"), ("Pérez Soto Ana", "2°A"), ("Rojas Luis", "2°B")],
         )
         self.assertIn("1 filas sin nombre", self.alumnos_out)
+
+    def test_curso_por_hoja_y_ordinal(self):
+        self.assertEqual(store.normalize_curso("1º Básico A"), "1°A")
+        self.assertEqual(store.normalize_curso("1° básico b"), "1°B")
+        admin("colegio", "Colegio Hojas")
+        csv = Path(os.environ["TRIAL_DATA_DIR"]) / "hoja.csv"
+        csv.write_text(
+            "Curso:;1º Básico B;;;\n"
+            "Profesor jefe:;Ruth;;;\n"
+            ";;;;\n"
+            "Nº de lista;RUN;Apellido paterno;Apellido materno;Nombres\n"
+            "1;123;Abello;Galvaliz;Zara\n"
+            "2;456;SANTANA;KUNZ;NAHUEL BENJAMIN\n",
+            encoding="utf-8",
+        )
+        admin("alumnos", "colegio-hojas", str(csv))
+        alumnos = store.load("colegio-hojas")["alumnos"]
+        self.assertEqual(
+            [(a["nombre"], a["curso"]) for a in alumnos],
+            [("Abello Galvaliz Zara", "1°B"), ("Santana Kunz Nahuel Benjamin", "1°B")],
+        )
+        self.assertNotIn("rut", json.dumps(alumnos).lower())
+
+    def test_archivo_ilegible_no_vacia_el_listado(self):
+        antes = store.load("colegio-san-jose")["alumnos"]
+        csv = Path(os.environ["TRIAL_DATA_DIR"]) / "malo.csv"
+        csv.write_text("Nombre\nSin Curso\n", encoding="utf-8")
+        r = subprocess.run(
+            [sys.executable, "trial_admin.py", "alumnos", "colegio-san-jose", str(csv)],
+            capture_output=True, text=True,
+        )
+        self.assertNotEqual(r.returncode, 0)
+        self.assertEqual(store.load("colegio-san-jose")["alumnos"], antes)
 
     def test_recarga_conserva_ids(self):
         before = {a["nombre"]: a["id"] for a in store.load("colegio-san-jose")["alumnos"]}

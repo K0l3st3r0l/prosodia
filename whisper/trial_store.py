@@ -146,7 +146,10 @@ def normalize_curso(raw: str) -> str | None:
     lo único imprescindible es que el número quede primero. «2° Básico A»,
     «2B», «2 básico b» y «Segundo A» terminan todos en `2°A`/`2°B`.
     """
-    plain = unicodedata.normalize("NFKD", str(raw)).encode("ascii", "ignore").decode()
+    # NFKD convierte el ordinal «º» en una «o», que después se leía como la
+    # letra del curso: «1º Básico A» quedaba en `1°O`.
+    raw = re.sub(r"[º°ª]", " ", str(raw))
+    plain = unicodedata.normalize("NFKD", raw).encode("ascii", "ignore").decode()
     plain = re.sub(r"\b(basico|ano)\b", " ", plain.lower())
     # Las lecturas son de básica: un «1° medio» no puede caer en 1° básico.
     if "medio" in plain:

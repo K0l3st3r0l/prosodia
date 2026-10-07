@@ -7,8 +7,10 @@
     python3 whisper/trial_admin.py quitar-usuario colegio-san-jose profe@colegio.cl
     python3 whisper/trial_admin.py ver [colegio-san-jose]
 
-El Excel/CSV necesita una columna de curso y el nombre, ya sea en una columna
-«nombre» o repartido en «nombres» + «apellidos» (o paterno/materno).
+El Excel/CSV necesita el nombre, ya sea en una columna «nombre» o repartido en
+«nombres» + «apellidos» (o paterno/materno), y el curso: como columna, en una
+celda «Curso:» sobre los encabezados o como nombre de la hoja. Se leen todas
+las hojas salvo que se indique `--hoja`.
 """
 
 from __future__ import annotations
@@ -35,15 +37,20 @@ def _key(text: str) -> str:
     return " ".join(plain.lower().split())
 
 
-def _read_rows(path: Path, hoja: str | None) -> list[list[str]]:
+def _read_sheets(path: Path, hoja: str | None) -> list[tuple[str, list[list[str]]]]:
+    """(título, filas) de cada hoja. Sin `--hoja` se leen todas: los colegios
+    suelen mandar un curso por hoja."""
     if path.suffix.lower() in (".xlsx", ".xlsm"):
         import openpyxl
 
         wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
-        ws = wb[hoja] if hoja else wb.worksheets[0]
+        sheets = [wb[hoja]] if hoja else wb.worksheets
         return [
-            ["" if c is None else str(c).strip() for c in row]
-            for row in ws.iter_rows(values_only=True)
+            (ws.title, [
+                ["" if c is None else str(c).strip() for c in row]
+                for row in ws.iter_rows(values_only=True)
+            ])
+            for ws in sheets
         ]
     with open(path, encoding="utf-8-sig", newline="") as fh:
         sample = fh.read(4096)
@@ -51,12 +58,25 @@ def _read_rows(path: Path, hoja: str | None) -> list[list[str]]:
         # `csv.Sniffer` se rinde con la fila de título que traen los listados
         # exportados; contar separadores basta.
         delimiter = max(";,\t", key=sample.count)
-        return [[c.strip() for c in row] for row in csv.reader(fh, delimiter=delimiter)]
+        return [(path.stem, [[c.strip() for c in row] for row in csv.reader(fh, delimiter=delimiter)])]
 
 
-def _find_header(rows: list[list[str]]) -> tuple[int, dict[str, int]]:
-    """Primera fila que tenga curso y algo de nombre; el Excel suele traer
-    títulos o filas vacías antes de los encabezados."""
+def _sheet_curso(title: str, above: list[list[str]]) -> str | None:
+    """Curso de toda la hoja, cuando no viene por fila: una celda «Curso:» con
+    el valor al lado, sobre los encabezados, o si no el nombre de la hoja."""
+    for row in above:
+        for j, cell in enumerate(row):
+            if _key(cell).startswith("curso"):
+                valor = next((c for c in row[j + 1:] if c), "")
+                if store.normalize_curso(valor):
+                    return valor
+    return title if store.normalize_curso(title) else None
+
+
+def _find_header(rows: list[list[str]]) -> tuple[int, dict[str, int]] | None:
+    """Primera fila con algo de nombre; el Excel suele traer títulos o filas
+    vacías antes de los encabezados. El curso puede venir como columna o
+    para toda la hoja (ver `_sheet_curso`)."""
     for i, row in enumerate(rows[:20]):
         cols = {_key(c): j for j, c in enumerate(row) if c}
         found: dict[str, int] = {}
@@ -73,10 +93,9 @@ def _find_header(rows: list[list[str]]) -> tuple[int, dict[str, int]]:
                 found.setdefault("nombres", j)
             elif name.startswith("nombre"):
                 found.setdefault("nombre", j)
-        has_name = "nombre" in found or "nombres" in found
-        if "curso" in found and has_name:
+        if "nombre" in found or "nombres" in found:
             return i, found
-    sys.exit("No encontré encabezados de curso y nombre en las primeras 20 filas.")
+    return None
 
 
 def _nombre(row: list[str], cols: dict[str, int]) -> str:
@@ -87,7 +106,9 @@ def _nombre(row: list[str], cols: dict[str, int]) -> str:
     apellidos = get("apellidos") or " ".join(p for p in (get("paterno"), get("materno")) if p)
     # Mismo orden que la app con los alumnos de Anahuac: apellido primero. Con
     # una sola columna «nombre» se asume que ya trae el nombre completo.
-    return " ".join(f"{apellidos} {get('nombres') or get('nombre')}".split())
+    partes = f"{apellidos} {get('nombres') or get('nombre')}".split()
+    # Algunos listados mezclan filas en mayúsculas; en la app se ven gritadas.
+    return " ".join(p.title() if p.isupper() else p for p in partes)
 
 
 def cmd_colegio(args) -> None:
@@ -107,21 +128,35 @@ def cmd_colegio(args) -> None:
 
 
 def cmd_alumnos(args) -> None:
-    rows = _read_rows(Path(args.archivo), args.hoja)
-    header, cols = _find_header(rows)
-
     nuevos: list[tuple[str, str]] = []
     rechazados: list[str] = []
-    for n, row in enumerate(rows[header + 1:], start=header + 2):
-        if not any(row):
+    for title, rows in _read_sheets(Path(args.archivo), args.hoja):
+        found = _find_header(rows)
+        if found is None:
+            rechazados.append(f"hoja {title!r}: sin encabezado de nombre")
             continue
-        nombre = _nombre(row, cols)
-        raw_curso = row[cols["curso"]] if cols["curso"] < len(row) else ""
-        curso = store.normalize_curso(raw_curso)
-        if not nombre or curso is None:
-            rechazados.append(f"fila {n}: nombre={nombre!r} curso={raw_curso!r}")
+        header, cols = found
+        curso_hoja = None if "curso" in cols else _sheet_curso(title, rows[:header])
+        if "curso" not in cols and curso_hoja is None:
+            rechazados.append(f"hoja {title!r}: no encontré el curso")
             continue
-        nuevos.append((nombre, curso))
+        for n, row in enumerate(rows[header + 1:], start=header + 2):
+            if not any(row):
+                continue
+            nombre = _nombre(row, cols)
+            if curso_hoja is not None:
+                raw_curso = curso_hoja
+            else:
+                raw_curso = row[cols["curso"]] if cols["curso"] < len(row) else ""
+            curso = store.normalize_curso(raw_curso)
+            if not nombre or curso is None:
+                rechazados.append(f"hoja {title!r} fila {n}: nombre={nombre!r} curso={raw_curso!r}")
+                continue
+            nuevos.append((nombre, curso))
+
+    # Un archivo que no se pudo leer no puede vaciar el listado que ya estaba.
+    if not nuevos:
+        sys.exit("No salió ningún alumno; el listado anterior queda igual.\n" + "\n".join(rechazados))
 
     with store.write_lock():
         colegio = store.load(args.colegio)

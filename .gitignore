@@ -54,3 +54,6 @@ build/
 
 # Graphify - regenerar con: bash /root/apps/wiki/brain-setup.sh /root/apps
 graphify-out/
+
+# Python (whisper/trial_admin.py corre en el host)
+__pycache__/
