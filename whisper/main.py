@@ -42,10 +42,55 @@ def _tokenizar(texto: str) -> list[str]:
     return re.findall(r"\b\w+\b", texto.lower())
 
 
+# Una palabra de los textos de básica leída por sílabas no pasa de ~6 trozos.
+_MAX_SILABAS = 6
+
+
+def _unir_silabas(palabras_esperadas: list[str], palabras_transcritas: list[str]) -> tuple[list[str], int]:
+    """Junta los trozos consecutivos que forman una palabra del texto.
+
+    Un niño que lee "pa-lo-ma" leyó bien "paloma", pero Whisper lo transcribe en
+    trozos y cada uno contaba como error: el PCPM de los lectores silábicos de
+    1°-2° caía a menos de la mitad. Solo se une si el resultado es una palabra
+    que está en el texto; la más larga gana.
+    """
+    vocabulario = set(palabras_esperadas)
+    unidas = []
+    n_unidas = 0
+    j = 0
+    while j < len(palabras_transcritas):
+        for k in range(min(_MAX_SILABAS, len(palabras_transcritas) - j), 1, -1):
+            candidata = "".join(palabras_transcritas[j:j + k])
+            if candidata in vocabulario:
+                unidas.append(candidata)
+                n_unidas += 1
+                j += k
+                break
+        else:
+            unidas.append(palabras_transcritas[j])
+            j += 1
+    return unidas, n_unidas
+
+
 def _comparar(esperado: str, transcrito: str) -> dict:
     palabras_esperadas = _tokenizar(esperado)
     palabras_transcritas = _tokenizar(transcrito)
+    unidas, n_unidas = _unir_silabas(palabras_esperadas, palabras_transcritas)
 
+    resultado = _alinear(palabras_esperadas, palabras_transcritas)
+    if n_unidas:
+        # Unir trozos nunca debe empeorar la lectura: si por azar junta dos
+        # palabras que el niño sí leyó separadas, se queda la cuenta original.
+        con_silabas = _alinear(palabras_esperadas, unidas)
+        if con_silabas["palabras_correctas"] > resultado["palabras_correctas"]:
+            resultado = con_silabas
+        else:
+            n_unidas = 0
+    resultado["palabras_por_silabas"] = n_unidas
+    return resultado
+
+
+def _alinear(palabras_esperadas: list[str], palabras_transcritas: list[str]) -> dict:
     matcher = difflib.SequenceMatcher(None, palabras_esperadas, palabras_transcritas)
     errores = []
     # Última palabra del texto que el alumno alcanzó a decir, bien o mal.

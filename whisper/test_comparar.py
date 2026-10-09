@@ -51,9 +51,41 @@ class CompararTest(unittest.TestCase):
         self.assertEqual(r["errores"], 0)
         self.assertEqual(r["palabras_correctas"], 0)
 
+    def test_palabra_leida_en_silabas_es_correcta(self):
+        r = _comparar(TEXTO, "la pa lo ma co me u na pe ra")
+        self.assertEqual(r["palabras_leidas"], 5)
+        self.assertEqual(r["errores"], 0)
+        self.assertEqual(r["palabras_correctas"], 5)
+        self.assertEqual(r["palabras_por_silabas"], 4)
+
+    def test_silabas_con_guiones_y_pausas(self):
+        r = _comparar(TEXTO, "La pa-lo-ma... co-me u-na pe... ra.")
+        self.assertEqual(r["palabras_correctas"], 5)
+        self.assertEqual(r["errores"], 0)
+
+    def test_silabas_mezcladas_con_un_error_real(self):
+        # "pe ro" no forma "pera": sigue siendo un error.
+        r = _comparar(TEXTO, "la pa lo ma come una pe ro")
+        self.assertEqual(r["palabras_correctas"], 4)
+        self.assertEqual(r["errores_detalle"][0]["esperado"], "pera")
+
+    def test_unir_nunca_empeora_la_lectura(self):
+        # "a" + "mar" forma "amar", que está en el texto, pero el niño leyó
+        # bien las dos palabras separadas: se queda la cuenta sin unir.
+        texto = "a mar es amar"
+        r = _comparar(texto, texto)
+        self.assertEqual(r["palabras_correctas"], 4)
+        self.assertEqual(r["palabras_por_silabas"], 0)
+
+    def test_sin_silabas_no_cambia_nada(self):
+        r = _comparar(TEXTO, "la paloma come una pera")
+        self.assertEqual(r["palabras_por_silabas"], 0)
+        self.assertEqual(r["palabras_correctas"], 5)
+
     def test_correctas_igual_que_antes(self):
         # Antes: leídas = total del texto y lo no leído contaba como omisión.
-        # Las correctas —y por tanto el PCPM— no pueden cambiar.
+        # Sin lectura silábica, las correctas —y por tanto el PCPM— no pueden
+        # cambiar.
         casos = [
             "la paloma come una",
             "la paloma toma una pera en el sillón",
