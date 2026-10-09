@@ -738,6 +738,10 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
         audioPath: _audioPath,
         appBuild: appBuild ?? kAppBuild,
         readingCpl: _readingCpl,
+        palabrasLeidas: _palabrasLeidas,
+        errores: _errores,
+        duracionSegundos: _elapsed.inSeconds,
+        whisperAnalizado: _whisperAnalyzed,
       );
     } catch (e) {
       log.error('No se pudo guardar la evaluación en la tablet', e);

@@ -560,6 +560,53 @@ class $AssessmentSessionsTable extends AssessmentSessions
     type: DriftSqlType.double,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _palabrasLeidasMeta = const VerificationMeta(
+    'palabrasLeidas',
+  );
+  @override
+  late final GeneratedColumn<int> palabrasLeidas = GeneratedColumn<int>(
+    'palabras_leidas',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _erroresMeta = const VerificationMeta(
+    'errores',
+  );
+  @override
+  late final GeneratedColumn<int> errores = GeneratedColumn<int>(
+    'errores',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _duracionSegundosMeta = const VerificationMeta(
+    'duracionSegundos',
+  );
+  @override
+  late final GeneratedColumn<int> duracionSegundos = GeneratedColumn<int>(
+    'duracion_segundos',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _whisperAnalizadoMeta = const VerificationMeta(
+    'whisperAnalizado',
+  );
+  @override
+  late final GeneratedColumn<bool> whisperAnalizado = GeneratedColumn<bool>(
+    'whisper_analizado',
+    aliasedName,
+    true,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("whisper_analizado" IN (0, 1))',
+    ),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -576,6 +623,10 @@ class $AssessmentSessionsTable extends AssessmentSessions
     syncedAt,
     appBuild,
     readingCpl,
+    palabrasLeidas,
+    errores,
+    duracionSegundos,
+    whisperAnalizado,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -689,6 +740,39 @@ class $AssessmentSessionsTable extends AssessmentSessions
         readingCpl.isAcceptableOrUnknown(data['reading_cpl']!, _readingCplMeta),
       );
     }
+    if (data.containsKey('palabras_leidas')) {
+      context.handle(
+        _palabrasLeidasMeta,
+        palabrasLeidas.isAcceptableOrUnknown(
+          data['palabras_leidas']!,
+          _palabrasLeidasMeta,
+        ),
+      );
+    }
+    if (data.containsKey('errores')) {
+      context.handle(
+        _erroresMeta,
+        errores.isAcceptableOrUnknown(data['errores']!, _erroresMeta),
+      );
+    }
+    if (data.containsKey('duracion_segundos')) {
+      context.handle(
+        _duracionSegundosMeta,
+        duracionSegundos.isAcceptableOrUnknown(
+          data['duracion_segundos']!,
+          _duracionSegundosMeta,
+        ),
+      );
+    }
+    if (data.containsKey('whisper_analizado')) {
+      context.handle(
+        _whisperAnalizadoMeta,
+        whisperAnalizado.isAcceptableOrUnknown(
+          data['whisper_analizado']!,
+          _whisperAnalizadoMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -754,6 +838,22 @@ class $AssessmentSessionsTable extends AssessmentSessions
         DriftSqlType.double,
         data['${effectivePrefix}reading_cpl'],
       ),
+      palabrasLeidas: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}palabras_leidas'],
+      ),
+      errores: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}errores'],
+      ),
+      duracionSegundos: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}duracion_segundos'],
+      ),
+      whisperAnalizado: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}whisper_analizado'],
+      ),
     );
   }
 
@@ -790,6 +890,20 @@ class AssessmentSession extends DataClass
   /// `ReadingView.onReadingCplMeasured`). Varía por breakpoint y por el ancho
   /// realmente disponible, no es la constante de diseño (~64).
   final double? readingCpl;
+
+  /// Palabras que el alumno alcanzó a leer (correctas + errores), no el total
+  /// del texto. Con [errores] y [duracionSegundos] son los datos de los que
+  /// sale el PCPM; anahuac los guarda para mostrar PPM y auditar el PCPM.
+  ///
+  /// Nullable por la misma razón que [appBuild]: las filas anteriores no los
+  /// guardaban.
+  final int? palabrasLeidas;
+  final int? errores;
+  final int? duracionSegundos;
+
+  /// `true` si hubo análisis de Whisper (el docente pudo ajustar los conteos en
+  /// la revisión); `false` si falló y los ingresó a mano desde cero.
+  final bool? whisperAnalizado;
   const AssessmentSession({
     required this.id,
     required this.studentId,
@@ -805,6 +919,10 @@ class AssessmentSession extends DataClass
     this.syncedAt,
     this.appBuild,
     this.readingCpl,
+    this.palabrasLeidas,
+    this.errores,
+    this.duracionSegundos,
+    this.whisperAnalizado,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -830,6 +948,18 @@ class AssessmentSession extends DataClass
     }
     if (!nullToAbsent || readingCpl != null) {
       map['reading_cpl'] = Variable<double>(readingCpl);
+    }
+    if (!nullToAbsent || palabrasLeidas != null) {
+      map['palabras_leidas'] = Variable<int>(palabrasLeidas);
+    }
+    if (!nullToAbsent || errores != null) {
+      map['errores'] = Variable<int>(errores);
+    }
+    if (!nullToAbsent || duracionSegundos != null) {
+      map['duracion_segundos'] = Variable<int>(duracionSegundos);
+    }
+    if (!nullToAbsent || whisperAnalizado != null) {
+      map['whisper_analizado'] = Variable<bool>(whisperAnalizado);
     }
     return map;
   }
@@ -858,6 +988,18 @@ class AssessmentSession extends DataClass
       readingCpl: readingCpl == null && nullToAbsent
           ? const Value.absent()
           : Value(readingCpl),
+      palabrasLeidas: palabrasLeidas == null && nullToAbsent
+          ? const Value.absent()
+          : Value(palabrasLeidas),
+      errores: errores == null && nullToAbsent
+          ? const Value.absent()
+          : Value(errores),
+      duracionSegundos: duracionSegundos == null && nullToAbsent
+          ? const Value.absent()
+          : Value(duracionSegundos),
+      whisperAnalizado: whisperAnalizado == null && nullToAbsent
+          ? const Value.absent()
+          : Value(whisperAnalizado),
     );
   }
 
@@ -881,6 +1023,10 @@ class AssessmentSession extends DataClass
       syncedAt: serializer.fromJson<DateTime?>(json['syncedAt']),
       appBuild: serializer.fromJson<int?>(json['appBuild']),
       readingCpl: serializer.fromJson<double?>(json['readingCpl']),
+      palabrasLeidas: serializer.fromJson<int?>(json['palabrasLeidas']),
+      errores: serializer.fromJson<int?>(json['errores']),
+      duracionSegundos: serializer.fromJson<int?>(json['duracionSegundos']),
+      whisperAnalizado: serializer.fromJson<bool?>(json['whisperAnalizado']),
     );
   }
   @override
@@ -901,6 +1047,10 @@ class AssessmentSession extends DataClass
       'syncedAt': serializer.toJson<DateTime?>(syncedAt),
       'appBuild': serializer.toJson<int?>(appBuild),
       'readingCpl': serializer.toJson<double?>(readingCpl),
+      'palabrasLeidas': serializer.toJson<int?>(palabrasLeidas),
+      'errores': serializer.toJson<int?>(errores),
+      'duracionSegundos': serializer.toJson<int?>(duracionSegundos),
+      'whisperAnalizado': serializer.toJson<bool?>(whisperAnalizado),
     };
   }
 
@@ -919,6 +1069,10 @@ class AssessmentSession extends DataClass
     Value<DateTime?> syncedAt = const Value.absent(),
     Value<int?> appBuild = const Value.absent(),
     Value<double?> readingCpl = const Value.absent(),
+    Value<int?> palabrasLeidas = const Value.absent(),
+    Value<int?> errores = const Value.absent(),
+    Value<int?> duracionSegundos = const Value.absent(),
+    Value<bool?> whisperAnalizado = const Value.absent(),
   }) => AssessmentSession(
     id: id ?? this.id,
     studentId: studentId ?? this.studentId,
@@ -934,6 +1088,16 @@ class AssessmentSession extends DataClass
     syncedAt: syncedAt.present ? syncedAt.value : this.syncedAt,
     appBuild: appBuild.present ? appBuild.value : this.appBuild,
     readingCpl: readingCpl.present ? readingCpl.value : this.readingCpl,
+    palabrasLeidas: palabrasLeidas.present
+        ? palabrasLeidas.value
+        : this.palabrasLeidas,
+    errores: errores.present ? errores.value : this.errores,
+    duracionSegundos: duracionSegundos.present
+        ? duracionSegundos.value
+        : this.duracionSegundos,
+    whisperAnalizado: whisperAnalizado.present
+        ? whisperAnalizado.value
+        : this.whisperAnalizado,
   );
   AssessmentSession copyWithCompanion(AssessmentSessionsCompanion data) {
     return AssessmentSession(
@@ -957,6 +1121,16 @@ class AssessmentSession extends DataClass
       readingCpl: data.readingCpl.present
           ? data.readingCpl.value
           : this.readingCpl,
+      palabrasLeidas: data.palabrasLeidas.present
+          ? data.palabrasLeidas.value
+          : this.palabrasLeidas,
+      errores: data.errores.present ? data.errores.value : this.errores,
+      duracionSegundos: data.duracionSegundos.present
+          ? data.duracionSegundos.value
+          : this.duracionSegundos,
+      whisperAnalizado: data.whisperAnalizado.present
+          ? data.whisperAnalizado.value
+          : this.whisperAnalizado,
     );
   }
 
@@ -976,7 +1150,11 @@ class AssessmentSession extends DataClass
           ..write('synced: $synced, ')
           ..write('syncedAt: $syncedAt, ')
           ..write('appBuild: $appBuild, ')
-          ..write('readingCpl: $readingCpl')
+          ..write('readingCpl: $readingCpl, ')
+          ..write('palabrasLeidas: $palabrasLeidas, ')
+          ..write('errores: $errores, ')
+          ..write('duracionSegundos: $duracionSegundos, ')
+          ..write('whisperAnalizado: $whisperAnalizado')
           ..write(')'))
         .toString();
   }
@@ -997,6 +1175,10 @@ class AssessmentSession extends DataClass
     syncedAt,
     appBuild,
     readingCpl,
+    palabrasLeidas,
+    errores,
+    duracionSegundos,
+    whisperAnalizado,
   );
   @override
   bool operator ==(Object other) =>
@@ -1015,7 +1197,11 @@ class AssessmentSession extends DataClass
           other.synced == this.synced &&
           other.syncedAt == this.syncedAt &&
           other.appBuild == this.appBuild &&
-          other.readingCpl == this.readingCpl);
+          other.readingCpl == this.readingCpl &&
+          other.palabrasLeidas == this.palabrasLeidas &&
+          other.errores == this.errores &&
+          other.duracionSegundos == this.duracionSegundos &&
+          other.whisperAnalizado == this.whisperAnalizado);
 }
 
 class AssessmentSessionsCompanion extends UpdateCompanion<AssessmentSession> {
@@ -1033,6 +1219,10 @@ class AssessmentSessionsCompanion extends UpdateCompanion<AssessmentSession> {
   final Value<DateTime?> syncedAt;
   final Value<int?> appBuild;
   final Value<double?> readingCpl;
+  final Value<int?> palabrasLeidas;
+  final Value<int?> errores;
+  final Value<int?> duracionSegundos;
+  final Value<bool?> whisperAnalizado;
   const AssessmentSessionsCompanion({
     this.id = const Value.absent(),
     this.studentId = const Value.absent(),
@@ -1048,6 +1238,10 @@ class AssessmentSessionsCompanion extends UpdateCompanion<AssessmentSession> {
     this.syncedAt = const Value.absent(),
     this.appBuild = const Value.absent(),
     this.readingCpl = const Value.absent(),
+    this.palabrasLeidas = const Value.absent(),
+    this.errores = const Value.absent(),
+    this.duracionSegundos = const Value.absent(),
+    this.whisperAnalizado = const Value.absent(),
   });
   AssessmentSessionsCompanion.insert({
     this.id = const Value.absent(),
@@ -1064,6 +1258,10 @@ class AssessmentSessionsCompanion extends UpdateCompanion<AssessmentSession> {
     this.syncedAt = const Value.absent(),
     this.appBuild = const Value.absent(),
     this.readingCpl = const Value.absent(),
+    this.palabrasLeidas = const Value.absent(),
+    this.errores = const Value.absent(),
+    this.duracionSegundos = const Value.absent(),
+    this.whisperAnalizado = const Value.absent(),
   }) : studentId = Value(studentId),
        fecha = Value(fecha),
        pcpm = Value(pcpm),
@@ -1087,6 +1285,10 @@ class AssessmentSessionsCompanion extends UpdateCompanion<AssessmentSession> {
     Expression<DateTime>? syncedAt,
     Expression<int>? appBuild,
     Expression<double>? readingCpl,
+    Expression<int>? palabrasLeidas,
+    Expression<int>? errores,
+    Expression<int>? duracionSegundos,
+    Expression<bool>? whisperAnalizado,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1103,6 +1305,10 @@ class AssessmentSessionsCompanion extends UpdateCompanion<AssessmentSession> {
       if (syncedAt != null) 'synced_at': syncedAt,
       if (appBuild != null) 'app_build': appBuild,
       if (readingCpl != null) 'reading_cpl': readingCpl,
+      if (palabrasLeidas != null) 'palabras_leidas': palabrasLeidas,
+      if (errores != null) 'errores': errores,
+      if (duracionSegundos != null) 'duracion_segundos': duracionSegundos,
+      if (whisperAnalizado != null) 'whisper_analizado': whisperAnalizado,
     });
   }
 
@@ -1121,6 +1327,10 @@ class AssessmentSessionsCompanion extends UpdateCompanion<AssessmentSession> {
     Value<DateTime?>? syncedAt,
     Value<int?>? appBuild,
     Value<double?>? readingCpl,
+    Value<int?>? palabrasLeidas,
+    Value<int?>? errores,
+    Value<int?>? duracionSegundos,
+    Value<bool?>? whisperAnalizado,
   }) {
     return AssessmentSessionsCompanion(
       id: id ?? this.id,
@@ -1137,6 +1347,10 @@ class AssessmentSessionsCompanion extends UpdateCompanion<AssessmentSession> {
       syncedAt: syncedAt ?? this.syncedAt,
       appBuild: appBuild ?? this.appBuild,
       readingCpl: readingCpl ?? this.readingCpl,
+      palabrasLeidas: palabrasLeidas ?? this.palabrasLeidas,
+      errores: errores ?? this.errores,
+      duracionSegundos: duracionSegundos ?? this.duracionSegundos,
+      whisperAnalizado: whisperAnalizado ?? this.whisperAnalizado,
     );
   }
 
@@ -1185,6 +1399,18 @@ class AssessmentSessionsCompanion extends UpdateCompanion<AssessmentSession> {
     if (readingCpl.present) {
       map['reading_cpl'] = Variable<double>(readingCpl.value);
     }
+    if (palabrasLeidas.present) {
+      map['palabras_leidas'] = Variable<int>(palabrasLeidas.value);
+    }
+    if (errores.present) {
+      map['errores'] = Variable<int>(errores.value);
+    }
+    if (duracionSegundos.present) {
+      map['duracion_segundos'] = Variable<int>(duracionSegundos.value);
+    }
+    if (whisperAnalizado.present) {
+      map['whisper_analizado'] = Variable<bool>(whisperAnalizado.value);
+    }
     return map;
   }
 
@@ -1204,7 +1430,11 @@ class AssessmentSessionsCompanion extends UpdateCompanion<AssessmentSession> {
           ..write('synced: $synced, ')
           ..write('syncedAt: $syncedAt, ')
           ..write('appBuild: $appBuild, ')
-          ..write('readingCpl: $readingCpl')
+          ..write('readingCpl: $readingCpl, ')
+          ..write('palabrasLeidas: $palabrasLeidas, ')
+          ..write('errores: $errores, ')
+          ..write('duracionSegundos: $duracionSegundos, ')
+          ..write('whisperAnalizado: $whisperAnalizado')
           ..write(')'))
         .toString();
   }
@@ -1921,6 +2151,10 @@ typedef $$AssessmentSessionsTableCreateCompanionBuilder =
       Value<DateTime?> syncedAt,
       Value<int?> appBuild,
       Value<double?> readingCpl,
+      Value<int?> palabrasLeidas,
+      Value<int?> errores,
+      Value<int?> duracionSegundos,
+      Value<bool?> whisperAnalizado,
     });
 typedef $$AssessmentSessionsTableUpdateCompanionBuilder =
     AssessmentSessionsCompanion Function({
@@ -1938,6 +2172,10 @@ typedef $$AssessmentSessionsTableUpdateCompanionBuilder =
       Value<DateTime?> syncedAt,
       Value<int?> appBuild,
       Value<double?> readingCpl,
+      Value<int?> palabrasLeidas,
+      Value<int?> errores,
+      Value<int?> duracionSegundos,
+      Value<bool?> whisperAnalizado,
     });
 
 final class $$AssessmentSessionsTableReferences
@@ -2047,6 +2285,26 @@ class $$AssessmentSessionsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get palabrasLeidas => $composableBuilder(
+    column: $table.palabrasLeidas,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get errores => $composableBuilder(
+    column: $table.errores,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get duracionSegundos => $composableBuilder(
+    column: $table.duracionSegundos,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get whisperAnalizado => $composableBuilder(
+    column: $table.whisperAnalizado,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$StudentsTableFilterComposer get studentId {
     final $$StudentsTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -2145,6 +2403,26 @@ class $$AssessmentSessionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get palabrasLeidas => $composableBuilder(
+    column: $table.palabrasLeidas,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get errores => $composableBuilder(
+    column: $table.errores,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get duracionSegundos => $composableBuilder(
+    column: $table.duracionSegundos,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get whisperAnalizado => $composableBuilder(
+    column: $table.whisperAnalizado,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$StudentsTableOrderingComposer get studentId {
     final $$StudentsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -2223,6 +2501,24 @@ class $$AssessmentSessionsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<int> get palabrasLeidas => $composableBuilder(
+    column: $table.palabrasLeidas,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get errores =>
+      $composableBuilder(column: $table.errores, builder: (column) => column);
+
+  GeneratedColumn<int> get duracionSegundos => $composableBuilder(
+    column: $table.duracionSegundos,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get whisperAnalizado => $composableBuilder(
+    column: $table.whisperAnalizado,
+    builder: (column) => column,
+  );
+
   $$StudentsTableAnnotationComposer get studentId {
     final $$StudentsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -2294,6 +2590,10 @@ class $$AssessmentSessionsTableTableManager
                 Value<DateTime?> syncedAt = const Value.absent(),
                 Value<int?> appBuild = const Value.absent(),
                 Value<double?> readingCpl = const Value.absent(),
+                Value<int?> palabrasLeidas = const Value.absent(),
+                Value<int?> errores = const Value.absent(),
+                Value<int?> duracionSegundos = const Value.absent(),
+                Value<bool?> whisperAnalizado = const Value.absent(),
               }) => AssessmentSessionsCompanion(
                 id: id,
                 studentId: studentId,
@@ -2309,6 +2609,10 @@ class $$AssessmentSessionsTableTableManager
                 syncedAt: syncedAt,
                 appBuild: appBuild,
                 readingCpl: readingCpl,
+                palabrasLeidas: palabrasLeidas,
+                errores: errores,
+                duracionSegundos: duracionSegundos,
+                whisperAnalizado: whisperAnalizado,
               ),
           createCompanionCallback:
               ({
@@ -2326,6 +2630,10 @@ class $$AssessmentSessionsTableTableManager
                 Value<DateTime?> syncedAt = const Value.absent(),
                 Value<int?> appBuild = const Value.absent(),
                 Value<double?> readingCpl = const Value.absent(),
+                Value<int?> palabrasLeidas = const Value.absent(),
+                Value<int?> errores = const Value.absent(),
+                Value<int?> duracionSegundos = const Value.absent(),
+                Value<bool?> whisperAnalizado = const Value.absent(),
               }) => AssessmentSessionsCompanion.insert(
                 id: id,
                 studentId: studentId,
@@ -2341,6 +2649,10 @@ class $$AssessmentSessionsTableTableManager
                 syncedAt: syncedAt,
                 appBuild: appBuild,
                 readingCpl: readingCpl,
+                palabrasLeidas: palabrasLeidas,
+                errores: errores,
+                duracionSegundos: duracionSegundos,
+                whisperAnalizado: whisperAnalizado,
               ),
           withReferenceMapper: (p0) => p0
               .map(

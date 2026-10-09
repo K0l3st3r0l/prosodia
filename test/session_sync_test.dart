@@ -142,6 +142,37 @@ void main() {
       expect(await repo.pendingCount(), 0);
     });
 
+    test('envía los datos crudos de la lectura', () async {
+      final repo = AssessmentRepository(db, client);
+      await repo.saveLocal(
+        studentId: 1,
+        fecha: DateTime(2026, 10, 9),
+        pcpm: 42.5,
+        velocidad: 'Medio Baja',
+        nivelLogro: 'Bajo lo Esperado',
+        calidad: 'fluida',
+        nivelLogroCalidad: 'Bajo lo Esperado',
+        prosodia: 'adecuada',
+        palabrasLeidas: 90,
+        errores: 5,
+        duracionSegundos: 120,
+        whisperAnalizado: true,
+      );
+      Map<String, dynamic>? body;
+      adapter.respond = (options) {
+        body = Map<String, dynamic>.from(options.data as Map);
+        return (201, {'message': 'ok'});
+      };
+
+      await repo.syncPending();
+
+      expect(body, isNotNull);
+      expect(body!['palabras_leidas'], 90);
+      expect(body!['errores'], 5);
+      expect(body!['duracion_segundos'], 120);
+      expect(body!['whisper_analizado'], true);
+    });
+
     test('401: avisa sesión vencida, borra el token y no insiste', () async {
       final repo = await withPending([1, 2, 3]);
       adapter.respond = (_) => (401, {'error': 'Token inválido o requerido'});

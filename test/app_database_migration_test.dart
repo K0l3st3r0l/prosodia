@@ -119,4 +119,79 @@ void main() {
     expect(fresh.appBuild, 36);
     expect(fresh.readingCpl, 62.5);
   });
+
+  // v3 agrega los datos crudos de la lectura (palabras leídas, errores,
+  // duración, si hubo análisis de Whisper) para que anahuac muestre PPM.
+  test('la migración v2 → v3 preserva las filas existentes', () async {
+    final fechaEpoch = DateTime.utc(2026, 10, 8).millisecondsSinceEpoch ~/ 1000;
+
+    final raw = sqlite3.sqlite3.open(dbFile.path);
+    raw.execute('''
+      CREATE TABLE assessment_sessions (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        student_id INTEGER NOT NULL REFERENCES students (id),
+        fecha INTEGER NOT NULL,
+        pcpm REAL NOT NULL,
+        velocidad TEXT NOT NULL,
+        nivel_logro TEXT NOT NULL,
+        calidad TEXT NOT NULL,
+        nivel_logro_calidad TEXT NOT NULL,
+        prosodia TEXT NOT NULL,
+        audio_path TEXT,
+        synced INTEGER NOT NULL DEFAULT 0 CHECK ("synced" IN (0, 1)),
+        synced_at INTEGER,
+        app_build INTEGER,
+        reading_cpl REAL
+      );
+    ''');
+    raw.execute(
+      '''
+      INSERT INTO assessment_sessions
+        (id, student_id, fecha, pcpm, velocidad, nivel_logro, calidad,
+         nivel_logro_calidad, prosodia, synced, app_build, reading_cpl)
+      VALUES (1, 389, ?, 1.44, 'Lenta', 'Muy Bajo lo Esperado', 'fluida',
+              'Muy Bajo lo Esperado', 'adecuada', 0, 50, 64.0)
+      ''',
+      [fechaEpoch],
+    );
+    raw.execute('PRAGMA user_version = 2');
+    raw.dispose();
+
+    final db = AppDatabase.forTesting(NativeDatabase(dbFile));
+    addTearDown(db.close);
+
+    final historical = (await db.select(db.assessmentSessions).get()).single;
+    expect(historical.pcpm, 1.44);
+    expect(historical.appBuild, 50);
+    expect(historical.readingCpl, 64.0);
+    expect(historical.synced, isFalse, reason: 'sigue pendiente de envío');
+    expect(historical.palabrasLeidas, isNull);
+    expect(historical.errores, isNull);
+    expect(historical.duracionSegundos, isNull);
+    expect(historical.whisperAnalizado, isNull);
+
+    final newId = await db.insertAssessment(
+      AssessmentSessionsCompanion.insert(
+        studentId: 389,
+        fecha: DateTime.utc(2026, 10, 9),
+        pcpm: 42.5,
+        velocidad: 'Medio Baja',
+        nivelLogro: 'Bajo lo Esperado',
+        calidad: 'fluida',
+        nivelLogroCalidad: 'Bajo lo Esperado',
+        prosodia: 'adecuada',
+        palabrasLeidas: const Value(90),
+        errores: const Value(5),
+        duracionSegundos: const Value(120),
+        whisperAnalizado: const Value(true),
+      ),
+    );
+    final fresh = await (db.select(
+      db.assessmentSessions,
+    )..where((t) => t.id.equals(newId))).getSingle();
+    expect(fresh.palabrasLeidas, 90);
+    expect(fresh.errores, 5);
+    expect(fresh.duracionSegundos, 120);
+    expect(fresh.whisperAnalizado, isTrue);
+  });
 }

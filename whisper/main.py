@@ -48,9 +48,13 @@ def _comparar(esperado: str, transcrito: str) -> dict:
 
     matcher = difflib.SequenceMatcher(None, palabras_esperadas, palabras_transcritas)
     errores = []
+    # Última palabra del texto que el alumno alcanzó a decir, bien o mal.
+    ultima_leida = -1
 
     for tag, i1, i2, j1, j2 in matcher.get_opcodes():
-        if tag == "replace":
+        if tag == "equal":
+            ultima_leida = i2 - 1
+        elif tag == "replace":
             esp = palabras_esperadas[i1:i2]
             got = palabras_transcritas[j1:j2]
             for k in range(max(len(esp), len(got))):
@@ -59,6 +63,7 @@ def _comparar(esperado: str, transcrito: str) -> dict:
                 idx = (i1 + k) if k < len(esp) else None
                 if e and g:
                     errores.append({"tipo": "sustitución", "esperado": e, "leído": g, "indice": idx})
+                    ultima_leida = idx
                 elif e:
                     errores.append({"tipo": "omisión", "esperado": e, "leído": None, "indice": idx})
                 else:
@@ -70,12 +75,22 @@ def _comparar(esperado: str, transcrito: str) -> dict:
             for w in palabras_transcritas[j1:j2]:
                 errores.append({"tipo": "adición", "esperado": None, "leído": w, "indice": None})
 
+    # Lo que queda después de la última palabra dicha no se leyó: la lectura se
+    # cortó ahí (el docente detuvo el cronómetro). Contarlo como omisión no
+    # cambia el PCPM, pero inflaba "palabras leídas" al total del texto y con
+    # eso el PPM salía como si el alumno hubiera terminado.
+    errores = [
+        e for e in errores
+        if e["tipo"] == "adición" or e["indice"] <= ultima_leida
+    ]
+
     # Solo sustituciones y omisiones cuentan como error en fluidez lectora
     n_errores = sum(1 for e in errores if e["tipo"] in ("sustitución", "omisión"))
-    palabras_leidas = len(palabras_esperadas)
+    palabras_leidas = ultima_leida + 1
 
     return {
         "palabras_leidas": palabras_leidas,
+        "palabras_texto": len(palabras_esperadas),
         "errores": n_errores,
         "palabras_correctas": max(0, palabras_leidas - n_errores),
         "errores_detalle": errores[:60],

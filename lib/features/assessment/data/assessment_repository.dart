@@ -67,6 +67,10 @@ class AssessmentRepository {
     String? audioPath,
     int? appBuild,
     double? readingCpl,
+    int? palabrasLeidas,
+    int? errores,
+    int? duracionSegundos,
+    bool? whisperAnalizado,
   }) {
     return _db.insertAssessment(AssessmentSessionsCompanion(
       studentId: Value(studentId),
@@ -80,6 +84,10 @@ class AssessmentRepository {
       audioPath: Value(audioPath),
       appBuild: Value(appBuild),
       readingCpl: Value(readingCpl),
+      palabrasLeidas: Value(palabrasLeidas),
+      errores: Value(errores),
+      duracionSegundos: Value(duracionSegundos),
+      whisperAnalizado: Value(whisperAnalizado),
       synced: const Value(false),
     ));
   }
@@ -122,6 +130,10 @@ class AssessmentRepository {
           'semestre': session.fecha.month <= 7 ? 1 : 2,
           'app_build': session.appBuild,
           'reading_cpl': session.readingCpl,
+          'palabras_leidas': session.palabrasLeidas,
+          'errores': session.errores,
+          'duracion_segundos': session.duracionSegundos,
+          'whisper_analizado': session.whisperAnalizado,
         });
         await _db.markSynced(session.id);
         sent++;

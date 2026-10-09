@@ -44,6 +44,20 @@ class AssessmentSessions extends Table {
   /// `ReadingView.onReadingCplMeasured`). Varía por breakpoint y por el ancho
   /// realmente disponible, no es la constante de diseño (~64).
   RealColumn get readingCpl => real().nullable()();
+
+  /// Palabras que el alumno alcanzó a leer (correctas + errores), no el total
+  /// del texto. Con [errores] y [duracionSegundos] son los datos de los que
+  /// sale el PCPM; anahuac los guarda para mostrar PPM y auditar el PCPM.
+  ///
+  /// Nullable por la misma razón que [appBuild]: las filas anteriores no los
+  /// guardaban.
+  IntColumn get palabrasLeidas => integer().nullable()();
+  IntColumn get errores => integer().nullable()();
+  IntColumn get duracionSegundos => integer().nullable()();
+
+  /// `true` si hubo análisis de Whisper (el docente pudo ajustar los conteos en
+  /// la revisión); `false` si falló y los ingresó a mano desde cero.
+  BoolColumn get whisperAnalizado => boolean().nullable()();
 }
 
 class ReadingTexts extends Table {
@@ -64,7 +78,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -73,6 +87,18 @@ class AppDatabase extends _$AppDatabase {
       if (from < 2) {
         await m.addColumn(assessmentSessions, assessmentSessions.appBuild);
         await m.addColumn(assessmentSessions, assessmentSessions.readingCpl);
+      }
+      if (from < 3) {
+        await m.addColumn(assessmentSessions, assessmentSessions.palabrasLeidas);
+        await m.addColumn(assessmentSessions, assessmentSessions.errores);
+        await m.addColumn(
+          assessmentSessions,
+          assessmentSessions.duracionSegundos,
+        );
+        await m.addColumn(
+          assessmentSessions,
+          assessmentSessions.whisperAnalizado,
+        );
       }
     },
   );
