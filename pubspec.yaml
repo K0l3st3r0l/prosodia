@@ -2,7 +2,7 @@ name: prosodia
 description: "ProsodIA — App de evaluación de fluidez lectora para tablets Android"
 publish_to: 'none'
 
-version: 1.0.50+50
+version: 1.0.51+51
 
 environment:
   sdk: ^3.8.0

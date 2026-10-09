@@ -1,6 +1,6 @@
 {
-  "version": "1.0.50",
-  "build": 50,
-  "url": "https://ota.laravas.com/prosodia-latest.apk?v=50",
-  "changelog": "Colegios de prueba: pantalla de resultados por curso y alumno"
+  "version": "1.0.51",
+  "build": 51,
+  "url": "https://ota.laravas.com/prosodia-latest.apk?v=51",
+  "changelog": "Envía a Anahuac las palabras leídas, errores y duración de cada lectura, para mostrar palabras por minuto"
 }
